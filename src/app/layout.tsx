@@ -33,13 +33,13 @@ export const metadata: Metadata = {
     siteName: 'PrinceMarketing.ai',
     title: 'PrinceMarketing.ai — AI Creative Production Engine',
     description: 'One API call. Agency-grade creative. Quality-scored before you see it. Generate images, videos, and marketing copy through a single API.',
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'PrinceMarketing.ai' }],
+    images: [{ url: '/images/og-image-ai.png', width: 1200, height: 630, alt: 'PrinceMarketing.ai — AI Creative Production Engine' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'PrinceMarketing.ai — AI Creative Production Engine',
     description: 'One API call. Agency-grade creative. Quality-scored before you see it.',
-    images: ['/og-image.png'],
+    images: ['/images/og-image-ai.png'],
   },
   robots: {
     index: true,

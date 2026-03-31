@@ -1,3 +1,4 @@
+import NextImage from 'next/image';
 import { Card, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Image, Video, FileText, BarChart3, Zap, Shield } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -7,6 +8,7 @@ type Feature = {
   title: string;
   description: string;
   badge?: string;
+  image?: string;
 };
 
 const FEATURES: ReadonlyArray<Feature> = [
@@ -15,24 +17,28 @@ const FEATURES: ReadonlyArray<Feature> = [
     title: 'Image Generation',
     description: 'Product shots, social media assets, and brand imagery. Prompt refinement via Claude ensures production-ready output.',
     badge: '5 credits',
+    image: '/images/feature-image-gen.png',
   },
   {
     icon: <Video className="w-5 h-5 text-forge-blue" />,
     title: 'Video Generation',
     description: 'Powered by Seedance 2.0 Omni. 5-15 second cinematic clips with character reference support. No text overlays, ever.',
     badge: '15-45 credits',
+    image: '/images/feature-video-gen.png',
   },
   {
     icon: <FileText className="w-5 h-5 text-forge-blue" />,
     title: 'Copy Generation',
     description: 'Ad copy, social posts, emails, landing pages. Tone-controlled, brand-aware, conversion-focused.',
     badge: '2 credits',
+    image: '/images/feature-copy-gen.png',
   },
   {
     icon: <BarChart3 className="w-5 h-5 text-forge-blue" />,
     title: 'Quality Scoring',
     description: '12 dimensions scored by a critic agent. Clarity, composition, brand alignment, emotional impact, AI artifact detection (1.3x weight).',
     badge: '1 credit',
+    image: '/images/feature-scoring.png',
   },
   {
     icon: <Zap className="w-5 h-5 text-ember" />,
@@ -62,19 +68,32 @@ export function Features() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {FEATURES.map((feature) => (
-            <Card key={feature.title} hover>
-              <div className="flex items-start justify-between mb-4">
-                <div className="p-2.5 rounded-lg bg-white/5">
-                  {feature.icon}
+            <Card key={feature.title} hover className={feature.image ? 'p-0 overflow-hidden' : ''}>
+              {feature.image && (
+                <div className="relative w-full aspect-[16/10] border-b border-white/6">
+                  <NextImage
+                    src={feature.image}
+                    alt={feature.title}
+                    fill
+                    className="object-cover rounded-t-xl"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  />
                 </div>
-                {feature.badge && (
-                  <span className="text-xs text-slate-500 font-[family-name:var(--font-mono)]">
-                    {feature.badge}
-                  </span>
-                )}
+              )}
+              <div className={feature.image ? 'p-6' : ''}>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="p-2.5 rounded-lg bg-white/5">
+                    {feature.icon}
+                  </div>
+                  {feature.badge && (
+                    <span className="text-xs text-slate-500 font-[family-name:var(--font-mono)]">
+                      {feature.badge}
+                    </span>
+                  )}
+                </div>
+                <CardTitle>{feature.title}</CardTitle>
+                <CardDescription>{feature.description}</CardDescription>
               </div>
-              <CardTitle>{feature.title}</CardTitle>
-              <CardDescription>{feature.description}</CardDescription>
             </Card>
           ))}
         </div>
