@@ -4,8 +4,18 @@ import { auth } from '@/lib/auth';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ─── API Key Auth for /api/v1/* routes ──────────────────────────────────
+  // ─── CORS + API Key Auth for /api/v1/* routes ────────────────────────────
   if (pathname.startsWith('/api/v1')) {
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      const response = new NextResponse(null, { status: 204 });
+      response.headers.set('Access-Control-Allow-Origin', '*');
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key');
+      response.headers.set('Access-Control-Max-Age', '86400');
+      return response;
+    }
+
     const apiKey = request.headers.get('authorization')?.replace('Bearer ', '')
       ?? request.headers.get('x-api-key');
 
@@ -24,8 +34,11 @@ export async function middleware(request: NextRequest) {
 
     // API key validation happens in the route handler (needs DB access)
     // We just ensure the header is present at the middleware level.
-    // The route handler will hash and look up the key.
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key');
+    return response;
   }
 
   // ─── Session Auth for /dashboard/* routes ───────────────────────────────

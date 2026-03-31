@@ -1,11 +1,18 @@
 import { NextRequest } from 'next/server';
 import { createApiKeySchema } from '@/types/apiKey';
 import { generateApiKey } from '@/lib/apiKeys';
-import { success, badRequest, serverError } from '@/lib/apiResponse';
+import { success, badRequest, unauthorized, serverError } from '@/lib/apiResponse';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/db';
 
 // POST /api/v1/keys — create a new API key
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return unauthorized('You must be signed in to create API keys.');
+    }
+
     const body = await request.json();
     const parsed = createApiKeySchema.safeParse(body);
 
@@ -19,17 +26,31 @@ export async function POST(request: NextRequest) {
     const input = parsed.data;
     const { fullKey, prefix, hashedKey } = generateApiKey(input.environment);
 
-    // In production, this would store in the database via Prisma
-    const keyRecord = {
-      id: `key_${crypto.randomUUID().slice(0, 8)}`,
-      name: input.name,
-      key: fullKey, // Shown once, never again
-      environment: input.environment,
-      prefix,
-      createdAt: new Date().toISOString(),
-    };
+    // Calculate expiration if provided
+    const expiresAt = input.expiresInDays
+      ? new Date(Date.now() + input.expiresInDays * 24 * 60 * 60 * 1000)
+      : null;
 
-    return success(keyRecord, {}, 201);
+    // Store in database
+    const keyRecord = await prisma.apiKey.create({
+      data: {
+        userId: session.user.id,
+        name: input.name,
+        environment: input.environment,
+        prefix,
+        hashedKey,
+        expiresAt,
+      },
+    });
+
+    return success({
+      id: keyRecord.id,
+      name: keyRecord.name,
+      key: fullKey, // Shown once, never again
+      environment: keyRecord.environment,
+      prefix: keyRecord.prefix,
+      createdAt: keyRecord.createdAt.toISOString(),
+    }, {}, 201);
   } catch (err) {
     console.error('[API] POST /v1/keys error:', err);
     return serverError('Failed to create API key.');
@@ -39,27 +60,25 @@ export async function POST(request: NextRequest) {
 // GET /api/v1/keys — list API keys (masked)
 export async function GET() {
   try {
-    // Demo data
-    const keys = [
-      {
-        id: 'key_abc12345',
-        name: 'Production',
-        environment: 'live',
-        prefix: 'pk_live_xxxx',
-        lastUsedAt: '2026-03-30T15:30:00Z',
-        createdAt: '2026-03-01T10:00:00Z',
-        revoked: false,
+    const session = await auth();
+    if (!session?.user?.id) {
+      return unauthorized('You must be signed in to view API keys.');
+    }
+
+    const keys = await prisma.apiKey.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        environment: true,
+        prefix: true,
+        lastUsedAt: true,
+        createdAt: true,
+        revoked: true,
+        expiresAt: true,
       },
-      {
-        id: 'key_def67890',
-        name: 'Development',
-        environment: 'test',
-        prefix: 'pk_test_xxxx',
-        lastUsedAt: '2026-03-30T12:00:00Z',
-        createdAt: '2026-03-15T08:00:00Z',
-        revoked: false,
-      },
-    ];
+    });
 
     return success({ keys });
   } catch (err) {
@@ -71,6 +90,11 @@ export async function GET() {
 // DELETE /api/v1/keys — revoke an API key
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return unauthorized('You must be signed in to revoke API keys.');
+    }
+
     const url = new URL(request.url);
     const keyId = url.searchParams.get('id');
 
@@ -78,7 +102,20 @@ export async function DELETE(request: NextRequest) {
       return badRequest('Missing required parameter: id');
     }
 
-    // In production, this would update the database
+    // Ensure the key belongs to the current user
+    const existingKey = await prisma.apiKey.findFirst({
+      where: { id: keyId, userId: session.user.id },
+    });
+
+    if (!existingKey) {
+      return badRequest('API key not found or does not belong to you.');
+    }
+
+    await prisma.apiKey.update({
+      where: { id: keyId },
+      data: { revoked: true },
+    });
+
     return success({ id: keyId, revoked: true });
   } catch (err) {
     console.error('[API] DELETE /v1/keys error:', err);

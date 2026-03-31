@@ -1,8 +1,45 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError('Invalid email or password.');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch {
+      setError('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
@@ -19,11 +56,20 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
-        <div className="bg-graphite rounded-xl border border-white/6 p-6 space-y-4">
-          <Input label="Email" type="email" placeholder="you@company.com" />
-          <Input label="Password" type="password" placeholder="Enter your password" />
-          <Button className="w-full" size="lg">Log in</Button>
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="bg-graphite rounded-xl border border-white/6 p-6 space-y-4">
+            {error && (
+              <div className="bg-flare/10 border border-flare/20 rounded-lg px-3 py-2 text-sm text-flare">
+                {error}
+              </div>
+            )}
+            <Input label="Email" name="email" type="email" placeholder="you@company.com" required />
+            <Input label="Password" name="password" type="password" placeholder="Enter your password" required />
+            <Button className="w-full" size="lg" type="submit" loading={loading}>
+              {loading ? 'Logging in...' : 'Log in'}
+            </Button>
+          </div>
+        </form>
 
         <p className="text-center text-sm text-slate-500 mt-6">
           No account?{' '}

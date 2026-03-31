@@ -58,6 +58,7 @@ async function generateImageWithGemini(
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
     }),
+    signal: AbortSignal.timeout(30000),
   });
 
   if (!response.ok) {

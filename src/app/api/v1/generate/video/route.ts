@@ -1,18 +1,111 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { generateVideoSchema } from '@/types/generation';
 import { generateVideo, getCreditsRequired } from '@/engine/VideoGenerator/VideoGenerator';
 import { evaluateGeneration } from '@/engine/CriticAgent/CriticAgent';
-import { success, badRequest, rateLimited, serverError } from '@/lib/apiResponse';
+import { badRequest, unauthorized, rateLimited, serverError } from '@/lib/apiResponse';
 import { checkRateLimit, type Tier } from '@/lib/rate-limiter';
 import { logAnalyticsEvent } from '@/lib/analytics';
+import { validateApiKey } from '@/lib/validateApiKey';
+import { prisma } from '@/lib/db';
 import type { VideoDuration } from '@/engine/VideoGenerator/constants';
 
+// Background video generation — runs after 202 is returned
+async function generateVideoInBackground(generationId: string, input: {
+  prompt: string;
+  negativePrompt?: string;
+  duration: VideoDuration;
+  aspectRatio: '16:9' | '9:16' | '1:1';
+  referenceImages?: readonly string[];
+  qualityTier: 'starter' | 'pro' | 'agency';
+}, userId: string) {
+  const startTime = performance.now();
+
+  try {
+    const result = await generateVideo({
+      prompt: input.prompt,
+      negativePrompt: input.negativePrompt,
+      duration: input.duration,
+      aspectRatio: input.aspectRatio as '16:9' | '9:16' | '1:1',
+      referenceImages: input.referenceImages,
+      qualityTier: input.qualityTier,
+    });
+
+    // Score the output
+    const verdict = await evaluateGeneration({
+      generationId: result.generationId,
+      type: 'video',
+      prompt: input.prompt,
+      resultUrl: result.videoUrl,
+      qualityTier: input.qualityTier,
+    });
+
+    const durationMs = Math.round(performance.now() - startTime);
+
+    // Update generation record with result
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: {
+        status: verdict.passed ? 'passed' : 'failed',
+        resultUrl: result.videoUrl,
+        refinedPrompt: result.refinedPrompt,
+        score: verdict.aggregateScore,
+        durationMs,
+        metadata: {
+          predictionId: result.predictionId,
+          model: result.model,
+          score: {
+            aggregate: verdict.aggregateScore,
+            passed: verdict.passed,
+            dimensions: verdict.dimensions,
+            feedback: verdict.feedback,
+          },
+        },
+      },
+    });
+
+    logAnalyticsEvent({
+      timestamp: new Date().toISOString(),
+      userId,
+      apiKey: '',
+      endpoint: '/v1/generate/video',
+      model: result.model,
+      costToUs: input.duration === 5 ? 10 : input.duration === 10 ? 20 : 30,
+      priceCharged: getCreditsRequired(input.duration),
+      success: true,
+      tier: 'pro',
+      durationMs,
+    });
+  } catch (err) {
+    console.error(`[VideoBackground] Generation ${generationId} failed:`, err);
+
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: {
+        status: 'failed',
+        errorMessage: err instanceof Error ? err.message : 'Unknown error',
+      },
+    }).catch(console.error);
+
+    // Refund credits on failure
+    await prisma.creditBalance.update({
+      where: { userId },
+      data: { videoCredits: { increment: getCreditsRequired(input.duration) } },
+    }).catch(console.error);
+  }
+}
+
 export async function POST(request: NextRequest) {
-  const apiKey = request.headers.get('authorization')?.replace('Bearer ', '')
+  const rawKey = request.headers.get('authorization')?.replace('Bearer ', '')
     ?? request.headers.get('x-api-key') ?? '';
 
   try {
-    // 1. Parse and validate
+    // 1. Validate API key against database
+    const apiKeyRecord = await validateApiKey(rawKey);
+    if (!apiKeyRecord) {
+      return unauthorized('Invalid or expired API key.');
+    }
+
+    // 2. Parse and validate
     const body = await request.json();
     const parsed = generateVideoSchema.safeParse(body);
 
@@ -27,12 +120,21 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parsed.data;
-    const tier = (input.qualityTier ?? 'pro') as Tier;
+    const tier = (apiKeyRecord.user.plan ?? 'starter') as Tier;
     const duration = Number(input.duration) as VideoDuration;
     const creditsRequired = getCreditsRequired(duration);
 
-    // 2. Rate limit check
-    const rateCheck = checkRateLimit(apiKey, tier);
+    // 3. Check credit balance
+    const creditBalance = apiKeyRecord.user.creditBalance;
+    if (!creditBalance || creditBalance.videoCredits < creditsRequired) {
+      return NextResponse.json(
+        { type: 'error', error: { code: 'INSUFFICIENT_CREDITS', message: 'Insufficient video credits.' } },
+        { status: 402 },
+      );
+    }
+
+    // 4. Rate limit check
+    const rateCheck = checkRateLimit(rawKey, tier);
     if (!rateCheck.allowed) {
       const retryAfter = Math.ceil((rateCheck.resetAt - Date.now()) / 1000);
       const response = rateLimited('Rate limit exceeded. Try again later.');
@@ -42,57 +144,48 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    // 3. Generate video via Seedance 2.0 Omni
-    const result = await generateVideo({
+    // 5. Deduct credits upfront (refunded on failure in background)
+    await prisma.creditBalance.update({
+      where: { userId: apiKeyRecord.user.id },
+      data: { videoCredits: { decrement: creditsRequired } },
+    });
+
+    // 6. Create generation record with 'processing' status
+    const generation = await prisma.generation.create({
+      data: {
+        userId: apiKeyRecord.userId,
+        type: 'video',
+        status: 'processing',
+        prompt: input.prompt,
+        creditsConsumed: creditsRequired,
+      },
+    });
+
+    // 7. Start generation in background (don't await)
+    generateVideoInBackground(generation.id, {
       prompt: input.prompt,
       negativePrompt: input.negativePrompt,
       duration,
-      aspectRatio: input.aspectRatio as '16:9' | '9:16' | '1:1',
+      aspectRatio: (input.aspectRatio ?? '16:9') as '16:9' | '9:16' | '1:1',
       referenceImages: input.referenceImages,
-      qualityTier: input.qualityTier,
-    });
+      qualityTier: (input.qualityTier ?? tier) as 'starter' | 'pro' | 'agency',
+    }, apiKeyRecord.userId).catch(console.error);
 
-    // 4. Score the output
-    const verdict = await evaluateGeneration({
-      generationId: result.generationId,
-      type: 'video',
-      prompt: input.prompt,
-      resultUrl: result.videoUrl,
-      qualityTier: input.qualityTier,
-    });
-
-    // 5. Log analytics (non-blocking)
-    logAnalyticsEvent({
-      timestamp: new Date().toISOString(),
-      userId: '',
-      apiKey: apiKey.slice(0, 12),
-      endpoint: '/v1/generate/video',
-      model: result.model,
-      costToUs: duration === 5 ? 10 : duration === 10 ? 20 : 30, // cents
-      priceCharged: creditsRequired,
-      success: true,
-      tier,
-      durationMs: result.durationMs,
-    });
-
-    // 6. Return response
-    const response = success(
+    // 8. Return immediately with 202 Accepted
+    const response = NextResponse.json(
       {
-        videoUrl: result.videoUrl,
-        refinedPrompt: result.refinedPrompt,
-        predictionId: result.predictionId,
-        score: {
-          aggregate: verdict.aggregateScore,
-          passed: verdict.passed,
-          dimensions: verdict.dimensions,
-          feedback: verdict.feedback,
+        type: 'success',
+        data: {
+          generationId: generation.id,
+          status: 'processing',
+          message: 'Video generation started. Poll GET /api/v1/generations/{id} for status.',
+        },
+        meta: {
+          generationId: generation.id,
+          creditsConsumed: creditsRequired,
         },
       },
-      {
-        generationId: result.generationId,
-        creditsConsumed: creditsRequired,
-        duration_ms: result.durationMs,
-      },
+      { status: 202 },
     );
     response.headers.set('X-RateLimit-Remaining', String(rateCheck.remaining));
     response.headers.set('X-RateLimit-Reset', String(rateCheck.resetAt));
@@ -103,7 +196,7 @@ export async function POST(request: NextRequest) {
     logAnalyticsEvent({
       timestamp: new Date().toISOString(),
       userId: '',
-      apiKey: apiKey.slice(0, 12),
+      apiKey: rawKey.slice(0, 12),
       endpoint: '/v1/generate/video',
       model: 'seedance',
       costToUs: 0,

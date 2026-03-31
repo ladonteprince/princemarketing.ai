@@ -71,7 +71,7 @@ export async function saveVideo(remoteUrl: string): Promise<string> {
 
   await ensureDir(dirPath);
 
-  const response = await fetch(remoteUrl);
+  const response = await fetch(remoteUrl, { signal: AbortSignal.timeout(60000) });
   if (!response.ok) {
     throw new Error(`Failed to download video from ${remoteUrl}: ${response.status}`);
   }

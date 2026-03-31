@@ -1,18 +1,26 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { generateCopySchema } from '@/types/generation';
 import { generateCopyContent, getCreditsRequired } from '@/engine/CopyGenerator/CopyGenerator';
 import { evaluateGeneration } from '@/engine/CriticAgent/CriticAgent';
-import { success, badRequest, rateLimited, serverError } from '@/lib/apiResponse';
+import { success, badRequest, unauthorized, rateLimited, serverError } from '@/lib/apiResponse';
 import { checkRateLimit, type Tier } from '@/lib/rate-limiter';
 import { logAnalyticsEvent } from '@/lib/analytics';
+import { validateApiKey } from '@/lib/validateApiKey';
+import { prisma } from '@/lib/db';
 import type { CopyType, Tone } from '@/engine/CopyGenerator/constants';
 
 export async function POST(request: NextRequest) {
-  const apiKey = request.headers.get('authorization')?.replace('Bearer ', '')
+  const rawKey = request.headers.get('authorization')?.replace('Bearer ', '')
     ?? request.headers.get('x-api-key') ?? '';
 
   try {
-    // 1. Parse and validate
+    // 1. Validate API key against database
+    const apiKeyRecord = await validateApiKey(rawKey);
+    if (!apiKeyRecord) {
+      return unauthorized('Invalid or expired API key.');
+    }
+
+    // 2. Parse and validate
     const body = await request.json();
     const parsed = generateCopySchema.safeParse(body);
 
@@ -27,11 +35,20 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parsed.data;
-    const tier = (input.qualityTier ?? 'pro') as Tier;
+    const tier = (apiKeyRecord.user.plan ?? 'starter') as Tier;
     const creditsRequired = getCreditsRequired();
 
-    // 2. Rate limit check
-    const rateCheck = checkRateLimit(apiKey, tier);
+    // 3. Check credit balance
+    const creditBalance = apiKeyRecord.user.creditBalance;
+    if (!creditBalance || creditBalance.copyCredits < creditsRequired) {
+      return NextResponse.json(
+        { type: 'error', error: { code: 'INSUFFICIENT_CREDITS', message: 'Insufficient copy credits.' } },
+        { status: 402 },
+      );
+    }
+
+    // 4. Rate limit check
+    const rateCheck = checkRateLimit(rawKey, tier);
     if (!rateCheck.allowed) {
       const retryAfter = Math.ceil((rateCheck.resetAt - Date.now()) / 1000);
       const response = rateLimited('Rate limit exceeded. Try again later.');
@@ -41,7 +58,7 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    // 3. Generate copy
+    // 5. Generate copy
     const result = await generateCopyContent({
       prompt: input.prompt,
       copyType: input.copyType as CopyType,
@@ -51,7 +68,7 @@ export async function POST(request: NextRequest) {
       qualityTier: input.qualityTier,
     });
 
-    // 4. Score the output
+    // 6. Score the output
     const verdict = await evaluateGeneration({
       generationId: result.generationId,
       type: 'copy',
@@ -60,21 +77,27 @@ export async function POST(request: NextRequest) {
       qualityTier: input.qualityTier,
     });
 
-    // 5. Log analytics (non-blocking)
+    // 7. Deduct credits after successful generation
+    await prisma.creditBalance.update({
+      where: { userId: apiKeyRecord.user.id },
+      data: { copyCredits: { decrement: creditsRequired } },
+    });
+
+    // 8. Log analytics (non-blocking)
     logAnalyticsEvent({
       timestamp: new Date().toISOString(),
-      userId: '',
-      apiKey: apiKey.slice(0, 12),
+      userId: apiKeyRecord.userId,
+      apiKey: rawKey.slice(0, 12),
       endpoint: '/v1/generate/copy',
       model: 'claude-copy',
-      costToUs: 1, // cents
+      costToUs: 1,
       priceCharged: creditsRequired,
       success: true,
       tier,
       durationMs: result.durationMs,
     });
 
-    // 6. Return response
+    // 9. Return response
     const response = success(
       {
         content: result.content,
@@ -101,7 +124,7 @@ export async function POST(request: NextRequest) {
     logAnalyticsEvent({
       timestamp: new Date().toISOString(),
       userId: '',
-      apiKey: apiKey.slice(0, 12),
+      apiKey: rawKey.slice(0, 12),
       endpoint: '/v1/generate/copy',
       model: 'claude-copy',
       costToUs: 0,

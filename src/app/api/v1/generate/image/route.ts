@@ -2,16 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateImageSchema } from '@/types/generation';
 import { generateImage, getCreditsRequired } from '@/engine/ImageGenerator/ImageGenerator';
 import { evaluateGeneration } from '@/engine/CriticAgent/CriticAgent';
-import { success, badRequest, rateLimited, serverError } from '@/lib/apiResponse';
+import { success, badRequest, unauthorized, rateLimited, serverError } from '@/lib/apiResponse';
 import { checkRateLimit, type Tier } from '@/lib/rate-limiter';
 import { logAnalyticsEvent } from '@/lib/analytics';
+import { validateApiKey } from '@/lib/validateApiKey';
+import { prisma } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
-  const apiKey = request.headers.get('authorization')?.replace('Bearer ', '')
+  const rawKey = request.headers.get('authorization')?.replace('Bearer ', '')
     ?? request.headers.get('x-api-key') ?? '';
 
   try {
-    // 1. Parse and validate request body
+    // 1. Validate API key against database
+    const apiKeyRecord = await validateApiKey(rawKey);
+    if (!apiKeyRecord) {
+      return unauthorized('Invalid or expired API key.');
+    }
+
+    // 2. Parse and validate request body
     const body = await request.json();
     const parsed = generateImageSchema.safeParse(body);
 
@@ -26,11 +34,21 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parsed.data;
-    const tier = (input.qualityTier ?? 'pro') as Tier;
+    // Get tier from the user's subscription/plan, NOT from the request body
+    const tier = (apiKeyRecord.user.plan ?? 'starter') as Tier;
     const creditsRequired = getCreditsRequired();
 
-    // 2. Rate limit check
-    const rateCheck = checkRateLimit(apiKey, tier);
+    // 3. Check credit balance
+    const creditBalance = apiKeyRecord.user.creditBalance;
+    if (!creditBalance || creditBalance.imageCredits < creditsRequired) {
+      return NextResponse.json(
+        { type: 'error', error: { code: 'INSUFFICIENT_CREDITS', message: 'Insufficient image credits.' } },
+        { status: 402 },
+      );
+    }
+
+    // 4. Rate limit check
+    const rateCheck = checkRateLimit(rawKey, tier);
     if (!rateCheck.allowed) {
       const retryAfter = Math.ceil((rateCheck.resetAt - Date.now()) / 1000);
       const response = rateLimited('Rate limit exceeded. Try again later.');
@@ -40,7 +58,7 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    // 3. Generate image
+    // 5. Generate image
     const result = await generateImage({
       prompt: input.prompt,
       style: input.style,
@@ -48,7 +66,7 @@ export async function POST(request: NextRequest) {
       qualityTier: input.qualityTier,
     });
 
-    // 4. Score the output via Critic Agent
+    // 6. Score the output via Critic Agent
     const verdict = await evaluateGeneration({
       generationId: result.generationId,
       type: 'image',
@@ -57,11 +75,17 @@ export async function POST(request: NextRequest) {
       qualityTier: input.qualityTier,
     });
 
-    // 5. Log analytics (non-blocking)
+    // 7. Deduct credits after successful generation
+    await prisma.creditBalance.update({
+      where: { userId: apiKeyRecord.user.id },
+      data: { imageCredits: { decrement: creditsRequired } },
+    });
+
+    // 8. Log analytics (non-blocking)
     logAnalyticsEvent({
       timestamp: new Date().toISOString(),
-      userId: '',
-      apiKey: apiKey.slice(0, 12),
+      userId: apiKeyRecord.userId,
+      apiKey: rawKey.slice(0, 12),
       endpoint: '/v1/generate/image',
       model: result.model ?? 'gemini-image',
       costToUs: tier === 'pro' ? 4 : 1, // cents
@@ -71,7 +95,7 @@ export async function POST(request: NextRequest) {
       durationMs: result.durationMs,
     });
 
-    // 6. Return response
+    // 9. Return response
     const response = success(
       {
         imageUrl: result.imageUrl,
@@ -98,7 +122,7 @@ export async function POST(request: NextRequest) {
     logAnalyticsEvent({
       timestamp: new Date().toISOString(),
       userId: '',
-      apiKey: apiKey.slice(0, 12),
+      apiKey: rawKey.slice(0, 12),
       endpoint: '/v1/generate/image',
       model: 'gemini-image',
       costToUs: 0,
