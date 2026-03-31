@@ -73,10 +73,10 @@ const RESPONSE_EXAMPLE = `{
 export default function QuickstartPage() {
   return (
     <div className="max-w-3xl">
-      <h1 className="text-3xl font-bold text-white font-[family-name:var(--font-display)]">
+      <h1 className="text-2xl sm:text-3xl font-bold text-white font-[family-name:var(--font-display)]">
         Quickstart
       </h1>
-      <p className="text-slate-400 mt-3 text-lg">
+      <p className="text-slate-400 mt-3 text-base sm:text-lg">
         First API call in 4 seconds. Get an API key, send a request, receive quality-scored creative.
       </p>
 
@@ -86,7 +86,7 @@ export default function QuickstartPage() {
           <span className="flex items-center justify-center w-7 h-7 rounded-full bg-forge-blue/15 text-forge-blue text-sm font-bold">1</span>
           Get your API key
         </h2>
-        <p className="text-slate-400 mt-2 ml-10">
+        <p className="text-slate-400 mt-2 sm:ml-10">
           Sign up at <code className="text-forge-blue font-[family-name:var(--font-mono)]">princemarketing.ai/register</code>.
           You will receive a key prefixed <code className="text-forge-blue font-[family-name:var(--font-mono)]">pk_live_</code> (production)
           or <code className="text-forge-blue font-[family-name:var(--font-mono)]">pk_test_</code> (sandbox). 100 free credits included.
@@ -100,7 +100,7 @@ export default function QuickstartPage() {
           Make your first request
         </h2>
 
-        <div className="mt-4 ml-10 space-y-4">
+        <div className="mt-4 sm:ml-10 space-y-4">
           <CodeBlock code={CURL_EXAMPLE} language="bash" title="curl" />
           <CodeBlock code={JS_EXAMPLE} language="javascript" title="JavaScript" />
           <CodeBlock code={PYTHON_EXAMPLE} language="python" title="Python" />
@@ -113,12 +113,12 @@ export default function QuickstartPage() {
           <span className="flex items-center justify-center w-7 h-7 rounded-full bg-forge-blue/15 text-forge-blue text-sm font-bold">3</span>
           Receive quality-scored output
         </h2>
-        <p className="text-slate-400 mt-2 ml-10">
+        <p className="text-slate-400 mt-2 sm:ml-10">
           Every response includes the generated asset and a full quality score across 12 dimensions.
           If the score is below your quality tier threshold, the system auto-regenerates.
         </p>
 
-        <div className="mt-4 ml-10">
+        <div className="mt-4 sm:ml-10">
           <CodeBlock code={RESPONSE_EXAMPLE} language="json" title="Response" />
         </div>
       </div>

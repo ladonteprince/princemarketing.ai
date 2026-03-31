@@ -17,56 +17,56 @@ export function Hero() {
     <section className="relative overflow-hidden">
       {/* Gradient backdrop */}
       <div className="absolute inset-0 bg-gradient-to-b from-forge-blue/5 via-transparent to-transparent pointer-events-none" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-forge-blue/3 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] sm:w-[600px] lg:w-[800px] h-[300px] sm:h-[400px] lg:h-[600px] bg-forge-blue/3 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="relative max-w-7xl mx-auto px-6 pt-24 pb-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 lg:pt-24 pb-12 sm:pb-16 lg:pb-20">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* Left — copy */}
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-forge-blue/10 border border-forge-blue/20 mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-forge-blue/10 border border-forge-blue/20 mb-4 sm:mb-6">
               <span className="w-2 h-2 rounded-full bg-forge-blue forge-pulse" />
               <span className="text-xs text-forge-blue font-[family-name:var(--font-display)]">
                 Now accepting API keys
               </span>
             </div>
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight font-[family-name:var(--font-display)]">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight font-[family-name:var(--font-display)]">
               One API call.
               <br />
               <span className="text-forge-blue">Agency-grade</span> creative.
             </h1>
 
-            <p className="text-lg text-slate-400 mt-6 max-w-lg leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-400 mt-4 sm:mt-6 max-w-lg leading-relaxed">
               Generate images, videos, and marketing copy through a single API.
               Every output is quality-scored across 12 dimensions before delivery.
               Below threshold? Auto-regenerated.
             </p>
 
-            <div className="flex items-center gap-4 mt-8">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mt-6 sm:mt-8">
               <Link href="/register">
-                <Button size="lg" icon={<ArrowRight className="w-4 h-4" />}>
+                <Button size="lg" icon={<ArrowRight className="w-4 h-4" />} className="w-full sm:w-auto">
                   Get your API key
                 </Button>
               </Link>
               <Link href="/docs/quickstart">
-                <Button variant="secondary" size="lg">
+                <Button variant="secondary" size="lg" className="w-full sm:w-auto">
                   Read the docs
                 </Button>
               </Link>
             </div>
 
             {/* Trust signals */}
-            <div className="flex items-center gap-6 mt-8 text-xs text-slate-500 font-[family-name:var(--font-display)]">
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 mt-6 sm:mt-8 text-xs text-slate-500 font-[family-name:var(--font-display)]">
               <span>100 free credits</span>
-              <span className="w-1 h-1 rounded-full bg-slate-700" />
+              <span className="hidden sm:inline w-1 h-1 rounded-full bg-slate-700" />
               <span>No credit card required</span>
-              <span className="w-1 h-1 rounded-full bg-slate-700" />
+              <span className="hidden sm:inline w-1 h-1 rounded-full bg-slate-700" />
               <span>First generation in 4 seconds</span>
             </div>
           </div>
 
           {/* Right — live code example */}
-          <div>
+          <div className="overflow-hidden">
             <CodeBlock
               code={HERO_CODE}
               language="bash"

@@ -24,10 +24,10 @@ const REFERENCE_EXAMPLE = `{
 export default function VideoDocsPage() {
   return (
     <div className="max-w-3xl">
-      <h1 className="text-3xl font-bold text-white font-[family-name:var(--font-display)]">
+      <h1 className="text-2xl sm:text-3xl font-bold text-white font-[family-name:var(--font-display)]">
         Generate Video
       </h1>
-      <p className="text-slate-400 mt-3 text-lg">
+      <p className="text-slate-400 mt-3 text-base sm:text-lg">
         Powered by Seedance 2.0 Omni via MuAPI. Generate 5-15 second cinematic video clips with
         character reference support. All outputs include the negative prompt
         &quot;NO TEXT, NO SUBTITLES, NO CAPTIONS&quot; automatically.

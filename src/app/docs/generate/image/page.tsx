@@ -33,10 +33,10 @@ const RESPONSE_EXAMPLE = `{
 export default function ImageDocsPage() {
   return (
     <div className="max-w-3xl">
-      <h1 className="text-3xl font-bold text-white font-[family-name:var(--font-display)]">
+      <h1 className="text-2xl sm:text-3xl font-bold text-white font-[family-name:var(--font-display)]">
         Generate Image
       </h1>
-      <p className="text-slate-400 mt-3 text-lg">
+      <p className="text-slate-400 mt-3 text-base sm:text-lg">
         Generate production-ready images from text prompts. Every image is scored across 12 quality dimensions.
       </p>
 

@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   description: 'One API call. Agency-grade creative. Quality-scored before you see it. Generate images, videos, and marketing copy through a single API.',
   icons: {
     icon: '/favicon.svg',
+    apple: '/favicon.svg',
   },
 };
 

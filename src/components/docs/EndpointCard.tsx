@@ -23,16 +23,16 @@ export function EndpointCard({ method, path, description, children, className = 
   return (
     <div className={`rounded-xl bg-graphite border border-white/6 overflow-hidden ${className}`}>
       {/* Endpoint header */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-white/6">
+      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 sm:py-4 border-b border-white/6 overflow-x-auto">
         <Badge variant={METHOD_VARIANTS[method]}>
           {method}
         </Badge>
-        <code className="text-sm text-white font-[family-name:var(--font-mono)]">
+        <code className="text-xs sm:text-sm text-white font-[family-name:var(--font-mono)] whitespace-nowrap">
           {path}
         </code>
       </div>
       {/* Description and content */}
-      <div className="px-5 py-4">
+      <div className="px-3 sm:px-5 py-3 sm:py-4">
         <p className="text-sm text-slate-400 mb-4">{description}</p>
         {children}
       </div>
@@ -51,8 +51,8 @@ type ParamRowProps = {
 
 export function ParamRow({ name, type, required = false, description, defaultValue }: ParamRowProps) {
   return (
-    <div className="flex items-start gap-4 py-3 border-b border-white/4 last:border-0">
-      <div className="w-40 shrink-0">
+    <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 py-3 border-b border-white/4 last:border-0">
+      <div className="sm:w-40 shrink-0">
         <code className="text-sm text-forge-blue font-[family-name:var(--font-mono)]">{name}</code>
         {required && <span className="text-flare text-xs ml-1">*</span>}
       </div>

@@ -52,10 +52,10 @@ const DOC_LINKS: ReadonlyArray<DocLink> = [
 export default function DocsPage() {
   return (
     <div>
-      <h1 className="text-3xl font-bold text-white font-[family-name:var(--font-display)]">
+      <h1 className="text-2xl sm:text-3xl font-bold text-white font-[family-name:var(--font-display)]">
         API Documentation
       </h1>
-      <p className="text-slate-400 mt-3 text-lg">
+      <p className="text-slate-400 mt-3 text-base sm:text-lg">
         PrinceMarketing.ai is an AI creative production engine. Generate images, videos, and marketing
         copy through a single API. Every output is quality-scored across 12 dimensions.
       </p>

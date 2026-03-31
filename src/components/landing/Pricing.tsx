@@ -74,13 +74,13 @@ const TIERS: ReadonlyArray<PricingTier> = [
 
 export function Pricing() {
   return (
-    <section id="pricing" className="py-24 border-t border-white/6">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-white font-[family-name:var(--font-display)]">
+    <section id="pricing" className="py-16 sm:py-20 lg:py-24 border-t border-white/6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-10 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white font-[family-name:var(--font-display)]">
             Usage-based pricing. No surprises.
           </h2>
-          <p className="text-slate-400 mt-3 max-w-xl mx-auto">
+          <p className="text-slate-400 mt-3 max-w-xl mx-auto text-sm sm:text-base">
             Pay for what you generate. Higher tiers get stricter quality gates and priority processing.
           </p>
         </div>
@@ -90,7 +90,7 @@ export function Pricing() {
             <div
               key={tier.name}
               className={`
-                relative rounded-xl p-8 border
+                relative rounded-xl p-6 sm:p-8 border
                 ${tier.highlighted
                   ? 'bg-graphite border-forge-blue/40 shadow-[0_0_60px_-12px_rgba(14,165,233,0.15)]'
                   : 'bg-graphite border-white/6'
@@ -110,7 +110,7 @@ export function Pricing() {
                   {tier.name}
                 </h3>
                 <div className="mt-3 flex items-baseline gap-1">
-                  <span className="text-4xl font-bold text-white font-[family-name:var(--font-display)]">
+                  <span className="text-3xl sm:text-4xl font-bold text-white font-[family-name:var(--font-display)]">
                     {tier.price}
                   </span>
                   <span className="text-sm text-slate-500">{tier.period}</span>
@@ -146,11 +146,11 @@ export function Pricing() {
         </div>
 
         {/* Credit usage reference */}
-        <div className="mt-12 bg-graphite rounded-xl border border-white/6 p-6">
+        <div className="mt-8 sm:mt-12 bg-graphite rounded-xl border border-white/6 p-4 sm:p-6">
           <h4 className="text-sm font-semibold text-white font-[family-name:var(--font-display)] mb-4">
             Credit usage reference
           </h4>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 sm:gap-4 text-center">
             {[
               { label: 'Image', credits: '5' },
               { label: 'Video (5s)', credits: '15' },
@@ -160,7 +160,7 @@ export function Pricing() {
             ].map((item) => (
               <div key={item.label} className="py-2">
                 <p className="text-xs text-slate-500">{item.label}</p>
-                <p className="text-lg font-bold text-white font-[family-name:var(--font-mono)] mt-1">
+                <p className="text-base sm:text-lg font-bold text-white font-[family-name:var(--font-mono)] mt-1">
                   {item.credits}
                 </p>
                 <p className="text-xs text-slate-600">credits</p>

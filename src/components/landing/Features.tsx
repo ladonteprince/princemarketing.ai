@@ -48,19 +48,19 @@ const FEATURES: ReadonlyArray<Feature> = [
 
 export function Features() {
   return (
-    <section className="py-24 border-t border-white/6">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-white font-[family-name:var(--font-display)]">
+    <section className="py-16 sm:py-20 lg:py-24 border-t border-white/6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-10 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white font-[family-name:var(--font-display)]">
             Four endpoints. Complete creative production.
           </h2>
-          <p className="text-slate-400 mt-3 max-w-2xl mx-auto">
+          <p className="text-slate-400 mt-3 max-w-2xl mx-auto text-sm sm:text-base">
             Every endpoint returns quality-scored output. Every asset passes through the critic agent.
             Below threshold = auto-regenerated.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {FEATURES.map((feature) => (
             <Card key={feature.title} hover>
               <div className="flex items-start justify-between mb-4">

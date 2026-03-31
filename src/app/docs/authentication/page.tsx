@@ -3,10 +3,10 @@ import { CodeBlock } from '@/components/docs/CodeBlock';
 export default function AuthenticationPage() {
   return (
     <div className="max-w-3xl">
-      <h1 className="text-3xl font-bold text-white font-[family-name:var(--font-display)]">
+      <h1 className="text-2xl sm:text-3xl font-bold text-white font-[family-name:var(--font-display)]">
         Authentication
       </h1>
-      <p className="text-slate-400 mt-3 text-lg">
+      <p className="text-slate-400 mt-3 text-base sm:text-lg">
         All API requests require a valid API key sent via the Authorization header.
       </p>
 

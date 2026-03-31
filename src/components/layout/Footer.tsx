@@ -3,10 +3,10 @@ import Link from 'next/link';
 export function Footer() {
   return (
     <footer className="border-t border-white/6 bg-void">
-      <div className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
-          <div>
+          <div className="col-span-2 md:col-span-1">
             <span className="text-lg font-bold text-white font-[family-name:var(--font-display)]">
               PrinceMarketing<span className="text-forge-blue">.ai</span>
             </span>
@@ -53,7 +53,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-white/6 flex items-center justify-between">
+        <div className="mt-8 sm:mt-12 pt-6 border-t border-white/6 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-slate-600">
             &copy; {new Date().getFullYear()} PrinceMarketing.ai. All rights reserved.
           </p>

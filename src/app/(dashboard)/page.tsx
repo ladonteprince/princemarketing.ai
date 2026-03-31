@@ -21,14 +21,14 @@ const TYPE_ICONS = {
 
 export default function DashboardPage() {
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white font-[family-name:var(--font-display)]">Overview</h1>
-        <p className="text-slate-400 mt-1">Your creative production dashboard.</p>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-white font-[family-name:var(--font-display)]">Overview</h1>
+        <p className="text-slate-400 mt-1 text-sm sm:text-base">Your creative production dashboard.</p>
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {[
           { label: 'Credits remaining', value: '847', icon: <Zap className="w-4 h-4 text-ember" /> },
           { label: 'Generations (30d)', value: '142', icon: <Image className="w-4 h-4 text-forge-blue" /> },
@@ -40,7 +40,7 @@ export default function DashboardPage() {
               <span className="text-xs text-slate-500 font-[family-name:var(--font-display)]">{stat.label}</span>
               {stat.icon && typeof stat.icon === 'object' && 'props' in stat.icon && stat.icon}
             </div>
-            <p className="text-3xl font-bold text-white font-[family-name:var(--font-mono)] tabular-nums">
+            <p className="text-2xl sm:text-3xl font-bold text-white font-[family-name:var(--font-mono)] tabular-nums">
               {stat.value}
             </p>
           </Card>
@@ -52,22 +52,22 @@ export default function DashboardPage() {
         <CardTitle>Recent generations</CardTitle>
         <CardDescription>Your latest creative outputs with quality scores.</CardDescription>
 
-        <div className="mt-4 -mx-6">
-          <table className="w-full">
+        <div className="mt-4 -mx-6 overflow-x-auto">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-white/6">
-                <th className="text-left text-xs text-slate-500 font-[family-name:var(--font-display)] px-6 py-3">Type</th>
-                <th className="text-left text-xs text-slate-500 font-[family-name:var(--font-display)] px-6 py-3">Prompt</th>
-                <th className="text-left text-xs text-slate-500 font-[family-name:var(--font-display)] px-6 py-3">Status</th>
-                <th className="text-left text-xs text-slate-500 font-[family-name:var(--font-display)] px-6 py-3">Score</th>
-                <th className="text-right text-xs text-slate-500 font-[family-name:var(--font-display)] px-6 py-3">Credits</th>
-                <th className="text-right text-xs text-slate-500 font-[family-name:var(--font-display)] px-6 py-3">Time</th>
+                <th className="text-left text-xs text-slate-500 font-[family-name:var(--font-display)] px-4 sm:px-6 py-3">Type</th>
+                <th className="text-left text-xs text-slate-500 font-[family-name:var(--font-display)] px-4 sm:px-6 py-3">Prompt</th>
+                <th className="text-left text-xs text-slate-500 font-[family-name:var(--font-display)] px-4 sm:px-6 py-3">Status</th>
+                <th className="text-left text-xs text-slate-500 font-[family-name:var(--font-display)] px-4 sm:px-6 py-3">Score</th>
+                <th className="text-right text-xs text-slate-500 font-[family-name:var(--font-display)] px-4 sm:px-6 py-3">Credits</th>
+                <th className="text-right text-xs text-slate-500 font-[family-name:var(--font-display)] px-4 sm:px-6 py-3">Time</th>
               </tr>
             </thead>
             <tbody>
               {RECENT_GENERATIONS.map((gen) => (
                 <tr key={gen.id} className="border-b border-white/4 hover:bg-white/2 transition-colors">
-                  <td className="px-6 py-3">
+                  <td className="px-4 sm:px-6 py-3">
                     <Badge variant="slate">
                       <span className="flex items-center gap-1.5">
                         {TYPE_ICONS[gen.type as keyof typeof TYPE_ICONS]}
@@ -75,19 +75,19 @@ export default function DashboardPage() {
                       </span>
                     </Badge>
                   </td>
-                  <td className="px-6 py-3">
-                    <span className="text-sm text-slate-300 truncate block max-w-xs">{gen.prompt}</span>
+                  <td className="px-4 sm:px-6 py-3">
+                    <span className="text-sm text-slate-300 truncate block max-w-[200px] sm:max-w-xs">{gen.prompt}</span>
                   </td>
-                  <td className="px-6 py-3">
+                  <td className="px-4 sm:px-6 py-3">
                     <StatusDot status={gen.status} showLabel />
                   </td>
-                  <td className="px-6 py-3">
+                  <td className="px-4 sm:px-6 py-3">
                     {gen.score !== null ? <ScoreBadge score={gen.score} /> : <span className="text-xs text-slate-600">--</span>}
                   </td>
-                  <td className="px-6 py-3 text-right">
+                  <td className="px-4 sm:px-6 py-3 text-right">
                     <span className="text-sm text-slate-400 font-[family-name:var(--font-mono)] tabular-nums">{gen.credits}</span>
                   </td>
-                  <td className="px-6 py-3 text-right">
+                  <td className="px-4 sm:px-6 py-3 text-right">
                     <span className="text-xs text-slate-500">{gen.time}</span>
                   </td>
                 </tr>

@@ -14,10 +14,10 @@ const SCORE_EXAMPLE = `curl -X POST https://api.princemarketing.ai/v1/score \\
 export default function ScoringDocsPage() {
   return (
     <div className="max-w-3xl">
-      <h1 className="text-3xl font-bold text-white font-[family-name:var(--font-display)]">
+      <h1 className="text-2xl sm:text-3xl font-bold text-white font-[family-name:var(--font-display)]">
         Quality Scoring System
       </h1>
-      <p className="text-slate-400 mt-3 text-lg">
+      <p className="text-slate-400 mt-3 text-base sm:text-lg">
         Every generation is scored across 12 dimensions by a critic agent powered by Claude.
         You can also score external assets using the standalone scoring endpoint.
       </p>
@@ -39,8 +39,8 @@ export default function ScoringDocsPage() {
             { name: 'CTA Strength', weight: '1.0x', desc: 'Clear, compelling, action-oriented call-to-action.' },
             { name: 'AI Artifact Detection', weight: '1.3x', desc: 'Absence of AI tells: malformed hands, text gibberish, uncanny faces.' },
           ].map((dim) => (
-            <div key={dim.name} className="flex items-start gap-4 py-3 border-b border-white/4">
-              <span className="w-48 shrink-0 text-sm text-white font-[family-name:var(--font-display)]">
+            <div key={dim.name} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 py-3 border-b border-white/4">
+              <span className="sm:w-48 shrink-0 text-sm text-white font-[family-name:var(--font-display)]">
                 {dim.name}
                 <span className={`ml-2 text-xs ${dim.weight === '1.3x' ? 'text-forge-blue' : 'text-slate-600'}`}>
                   {dim.weight}
