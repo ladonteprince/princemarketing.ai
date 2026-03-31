@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect width="400" height="400" fill="#0A0A0F"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&amp;display=swap');
+  </style>
+  <!-- P mark — large, anchored left -->
+  <text x="55" y="270" font-family="JetBrains Mono, monospace" font-weight="700" font-size="220" fill="#FFFFFF">P</text>
+  <!-- .ai suffix — tucked into the P's lower right -->
+  <text x="210" y="275" font-family="JetBrains Mono, monospace" font-weight="700" font-size="90" fill="#0EA5E9">.ai</text>
+  <!-- Terminal cursor line — subtle, anchored below text -->
+  <rect x="55" y="300" width="300" height="3" fill="#0EA5E9" opacity="0.25"/>
+</svg>

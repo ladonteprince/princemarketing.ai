@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect width="400" height="400" rx="32" fill="#0A0A0F"/>
+  <!-- Geometric P with Forge Blue accent — app icon style -->
+  <g transform="translate(80, 60)">
+    <!-- P stem in white -->
+    <rect x="0" y="0" width="24" height="280" fill="#FFFFFF"/>
+    <!-- P bowl in Forge Blue -->
+    <path d="M24,0 L140,0 C190,0 190,130 140,130 L24,130 L24,106 L140,106 C165,106 165,24 140,24 L24,24 Z" fill="#0EA5E9"/>
+  </g>
+  <!-- Subtle dot grid pattern -->
+  <g opacity="0.06" fill="#FFFFFF">
+    <circle cx="320" cy="320" r="2"/>
+    <circle cx="340" cy="320" r="2"/>
+    <circle cx="320" cy="340" r="2"/>
+    <circle cx="340" cy="340" r="2"/>
+    <circle cx="320" cy="360" r="2"/>
+    <circle cx="340" cy="360" r="2"/>
+  </g>
+</svg>

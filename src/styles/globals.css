@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  --color-void: #0A0A0F;
+  --color-graphite: #12121A;
+  --color-slate-surface: #1A1A2E;
+  --color-forge-blue: #0EA5E9;
+  --color-arc-light: #38BDF8;
+  --color-ember: #F59E0B;
+  --color-mint: #10B981;
+  --color-flare: #EF4444;
+
+  --font-display: 'JetBrains Mono', ui-monospace, monospace;
+  --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* 1. Base layer — dark-first aesthetic */
+body {
+  background-color: var(--color-void);
+  color: #E2E8F0;
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 2. Grain texture overlay — matte dark with 2% opacity */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.02;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* 3. Forge Blue pulse animation for loading/processing states */
+@keyframes forge-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.forge-pulse {
+  animation: forge-pulse 2s ease-in-out infinite;
+}
+
+/* 4. Skeleton screen shimmer */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-graphite) 25%,
+    var(--color-slate-surface) 50%,
+    var(--color-graphite) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+/* 5. Standard border treatment — 1px at 6% white */
+.border-subtle {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 6. Code block styling */
+pre code {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+/* 7. Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-void);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 8. Selection styling */
+::selection {
+  background: rgba(14, 165, 233, 0.3);
+  color: #FFFFFF;
+}

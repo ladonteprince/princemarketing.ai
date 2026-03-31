@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="800" height="200">
+  <rect width="800" height="200" fill="#0A0A0F"/>
+  <!-- Stacked layout: PrinceMarketing on top, .ai below aligned right -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700&amp;family=JetBrains+Mono:wght@700&amp;display=swap');
+  </style>
+  <text x="50" y="95" font-family="Inter, system-ui, sans-serif" font-weight="700" font-size="48" fill="#FFFFFF" letter-spacing="-0.02em">PrinceMarketing</text>
+  <text x="460" y="155" font-family="JetBrains Mono, monospace" font-weight="700" font-size="36" fill="#0EA5E9" letter-spacing="0.05em">.ai</text>
+  <!-- Subtle separator line -->
+  <line x1="460" y1="108" x2="540" y2="108" stroke="#0EA5E9" stroke-width="2" opacity="0.3"/>
+</svg>

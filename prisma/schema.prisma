@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  plan      String   @default("starter") // starter | pro | agency
+  credits   Int      @default(100)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  apiKeys      ApiKey[]
+  generations  Generation[]
+  usageRecords UsageRecord[]
+
+  @@map("users")
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  name        String
+  environment String    // live | test
+  prefix      String    // pk_live_xxxx or pk_test_xxxx (first 12 chars)
+  hashedKey   String    @unique @map("hashed_key")
+  lastUsedAt  DateTime? @map("last_used_at")
+  expiresAt   DateTime? @map("expires_at")
+  revoked     Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([hashedKey])
+  @@index([userId])
+  @@map("api_keys")
+}
+
+model Generation {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  type           String    // image | video | copy
+  status         String    @default("queued") // queued | processing | scoring | passed | failed | delivered
+  prompt         String
+  refinedPrompt  String?   @map("refined_prompt")
+  resultUrl      String?   @map("result_url")
+  resultContent  String?   @map("result_content") @db.Text
+  score          Float?
+  creditsConsumed Int      @default(0) @map("credits_consumed")
+  durationMs     Int?      @map("duration_ms")
+  errorMessage   String?   @map("error_message")
+  metadata       Json      @default("{}")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scoringResult ScoringResult?
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+  @@map("generations")
+}
+
+model ScoringResult {
+  id             String   @id @default(cuid())
+  generationId   String   @unique @map("generation_id")
+  dimensions     Json     // Array of { dimension, score, reasoning }
+  aggregateScore Float    @map("aggregate_score")
+  passed         Boolean
+  qualityTier    String   @map("quality_tier") // starter | pro | agency
+  feedback       String   @db.Text
+  scoredAt       DateTime @default(now()) @map("scored_at")
+
+  generation Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+
+  @@map("scoring_results")
+}
+
+model UsageRecord {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  generationId    String?  @map("generation_id")
+  endpoint        String
+  creditsConsumed Int      @map("credits_consumed")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([endpoint])
+  @@map("usage_records")
+}
