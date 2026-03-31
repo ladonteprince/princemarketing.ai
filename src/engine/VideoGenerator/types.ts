@@ -1,5 +1,6 @@
 import type { GenerationId } from '@/types/ids';
 import type { VideoDuration } from './constants';
+import type { SeedanceModelKey } from './VideoGenerator';
 
 export type VideoGenerationRequest = {
   prompt: string;
@@ -8,6 +9,7 @@ export type VideoGenerationRequest = {
   aspectRatio: '16:9' | '9:16' | '1:1';
   referenceImages?: ReadonlyArray<string>;
   qualityTier: 'starter' | 'pro' | 'agency';
+  model?: SeedanceModelKey;
 };
 
 export type VideoGenerationResult = {
@@ -15,5 +17,6 @@ export type VideoGenerationResult = {
   videoUrl: string;
   refinedPrompt: string;
   predictionId: string;
+  model: string;
   durationMs: number;
 };

@@ -7,18 +7,71 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  plan      String   @default("starter") // starter | pro | agency
-  credits   Int      @default(100)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+// ─── NextAuth Models ────────────────────────────────────────────────────────
 
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─── Core Models ────────────────────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  emailVerified  DateTime? @map("email_verified")
+  name           String?
+  hashedPassword String?  @map("hashed_password")
+  image          String?
+  plan           String   @default("starter") // starter | pro | agency
+  credits        Int      @default(100)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  accounts     Account[]
+  sessions     Session[]
   apiKeys      ApiKey[]
   generations  Generation[]
   usageRecords UsageRecord[]
+  subscription Subscription?
+  creditBalance CreditBalance?
 
   @@map("users")
 }
@@ -95,4 +148,40 @@ model UsageRecord {
   @@index([userId, createdAt(sort: Desc)])
   @@index([endpoint])
   @@map("usage_records")
+}
+
+// ─── Billing Models ─────────────────────────────────────────────────────────
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  userId               String    @unique @map("user_id")
+  stripeCustomerId     String    @unique @map("stripe_customer_id")
+  stripeSubscriptionId String?   @unique @map("stripe_subscription_id")
+  stripePriceId        String?   @map("stripe_price_id")
+  status               String    @default("inactive") // active | past_due | canceled | inactive
+  currentPeriodStart   DateTime? @map("current_period_start")
+  currentPeriodEnd     DateTime? @map("current_period_end")
+  cancelAtPeriodEnd    Boolean   @default(false) @map("cancel_at_period_end")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+  @@map("subscriptions")
+}
+
+model CreditBalance {
+  id           String   @id @default(cuid())
+  userId       String   @unique @map("user_id")
+  imageCredits Int      @default(100) @map("image_credits")
+  videoCredits Int      @default(10) @map("video_credits")
+  copyCredits  Int      @default(500) @map("copy_credits")
+  resetAt      DateTime @default(now()) @map("reset_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("credit_balances")
 }

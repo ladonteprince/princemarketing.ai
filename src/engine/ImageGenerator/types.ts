@@ -11,5 +11,6 @@ export type ImageGenerationResult = {
   generationId: GenerationId;
   imageUrl: string;
   refinedPrompt: string;
+  model: string;
   durationMs: number;
 };
