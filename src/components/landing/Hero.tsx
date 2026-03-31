@@ -1,9 +1,7 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { CodeBlock } from '@/components/docs/CodeBlock';
 import { ArrowRight } from 'lucide-react';
-import { SplineBackground } from '@/components/SplineBackground';
 
 const HERO_CODE = `curl -X POST https://api.princemarketing.ai/v1/generate/image \\
   -H "Authorization: Bearer pk_live_..." \\
@@ -17,11 +15,8 @@ const HERO_CODE = `curl -X POST https://api.princemarketing.ai/v1/generate/image
 export function Hero() {
   return (
     <section className="relative overflow-hidden">
-      {/* Spline 3D animated background — subtle atmosphere */}
-      <SplineBackground />
-
       {/* Gradient backdrop */}
-      <div className="absolute inset-0 bg-gradient-to-b from-forge-blue/5 via-transparent to-transparent pointer-events-none z-[1]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-forge-blue/5 via-transparent to-transparent pointer-events-none" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] sm:w-[600px] lg:w-[800px] h-[300px] sm:h-[400px] lg:h-[600px] bg-forge-blue/3 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 lg:pt-24 pb-12 sm:pb-16 lg:pb-20">
@@ -78,19 +73,6 @@ export function Hero() {
               title="Terminal"
             />
           </div>
-        </div>
-
-        {/* Agent forge hero image */}
-        <div className="relative mt-12 sm:mt-16 overflow-hidden rounded-xl border border-slate-800/50 shadow-2xl shadow-forge-blue/10">
-          <Image
-            src="/images/hero-forge.png"
-            alt="AI creative production forge — agents generating images, videos, and copy through a unified API"
-            width={1200}
-            height={675}
-            className="w-full"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-void/60 via-transparent to-transparent" />
         </div>
       </div>
     </section>
