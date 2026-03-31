@@ -1,4 +1,5 @@
 import { refinePrompt } from '@/lib/claude';
+import { saveImage } from '@/lib/storage';
 import { createGenerationId } from '@/types/ids';
 import type { ImageGenerationRequest, ImageGenerationResult } from './types';
 import { CREDITS_PER_IMAGE, DEFAULT_ASPECT_RATIO, DEFAULT_STYLE } from './constants';
@@ -101,10 +102,8 @@ export async function generateImage(
   const quality = qualityTierToGeminiQuality(request.qualityTier);
   const { base64, mimeType } = await generateImageWithGemini(refinedPrompt, quality);
 
-  // Step 3: Build a data URL for the image
-  // In production, you'd upload to R2/S3 and return a CDN URL.
-  // For now, return as a base64 data URL.
-  const imageUrl = `data:${mimeType};base64,${base64}`;
+  // Step 3: Save image to disk and get a public URL
+  const imageUrl = await saveImage(base64, mimeType);
 
   const durationMs = Math.round(performance.now() - startTime);
 

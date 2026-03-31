@@ -1,4 +1,5 @@
 import { refinePrompt } from '@/lib/claude';
+import { saveVideo } from '@/lib/storage';
 import { createGenerationId } from '@/types/ids';
 import type { VideoGenerationRequest, VideoGenerationResult } from './types';
 import { CREDITS_PER_DURATION, DEFAULT_ASPECT_RATIO, DEFAULT_DURATION } from './constants';
@@ -159,11 +160,15 @@ export async function generateVideo(
   // Step 3: Poll until complete
   const prediction = await pollPrediction(predictionId);
 
+  // Step 4: Download video from MuAPI and save locally
+  const remoteUrl = prediction.output ?? '';
+  const videoUrl = remoteUrl ? await saveVideo(remoteUrl) : '';
+
   const durationMs = Math.round(performance.now() - startTime);
 
   return {
     generationId: createGenerationId(crypto.randomUUID()),
-    videoUrl: prediction.output ?? '',
+    videoUrl,
     refinedPrompt,
     predictionId,
     model,
