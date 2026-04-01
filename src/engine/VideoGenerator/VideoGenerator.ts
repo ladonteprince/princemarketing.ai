@@ -2,8 +2,8 @@ import { refinePrompt } from '@/lib/claude';
 import { saveVideo } from '@/lib/storage';
 import { createGenerationId } from '@/types/ids';
 import { emitGenerationEvent } from '@/lib/generation-events';
-import type { VideoGenerationRequest, VideoGenerationResult } from './types';
-import { CREDITS_PER_DURATION, DEFAULT_ASPECT_RATIO, DEFAULT_DURATION } from './constants';
+import type { VideoGenerationRequest, VideoGenerationResult, VideoGenerationMode } from './types';
+import { CREDITS_PER_DURATION, CREDITS_PER_MODE, DEFAULT_ASPECT_RATIO, DEFAULT_DURATION } from './constants';
 import type { VideoDuration } from './constants';
 
 // ─── MuAPI Seedance Integration ─────────────────────────────────────────────
@@ -19,10 +19,12 @@ const MAX_CONSECUTIVE_OVERLOAD = 3;
 // Supported Seedance models
 const SEEDANCE_MODELS = {
   'omni-reference': 'seedance-v2.0-omni-reference',
+  'new-omni': 'seedance-v2.0-new-omni',
   't2v': 'seedance-v2.0-t2v',
   'i2v': 'seedance-v2.0-i2v',
   'extend': 'seedance-v2.0-extend',
   'character': 'seedance-v2.0-character',
+  'video-edit': 'seedance-v2.0-video-edit',
 } as const;
 
 export type SeedanceModelKey = keyof typeof SEEDANCE_MODELS;
@@ -111,6 +113,9 @@ async function createPrediction(params: {
   duration: VideoDuration;
   aspectRatio: '16:9' | '9:16' | '1:1';
   referenceImages?: ReadonlyArray<string>;
+  sourceImage?: string;
+  sourceVideo?: string;
+  seed?: number;
 }): Promise<string> {
   const apiKey = getApiKey();
 
@@ -126,9 +131,24 @@ async function createPrediction(params: {
     aspect_ratio: params.aspectRatio,
   };
 
+  // i2v mode: pass source image as `image` parameter
+  if (params.sourceImage) {
+    body.image = params.sourceImage;
+  }
+
+  // extend mode: pass source video as `video` parameter
+  if (params.sourceVideo) {
+    body.video = params.sourceVideo;
+  }
+
   // Add reference images if provided (for omni-reference and character models)
   if (params.referenceImages && params.referenceImages.length > 0) {
     body.images_list = params.referenceImages.map((url) => url);
+  }
+
+  // Seed for reproducible generations
+  if (params.seed !== undefined) {
+    body.seed = params.seed;
   }
 
   const response = await fetchWithRetry(
@@ -146,6 +166,46 @@ async function createPrediction(params: {
 
   const data = (await response.json()) as { id: string };
   return data.id;
+}
+
+// ─── Auto Watermark Removal ────────────────────────────────────────────────
+// Runs automatically after every generation. Cost: ~$0.003/clip.
+
+async function removeWatermark(videoUrl: string): Promise<string> {
+  const apiKey = getApiKey();
+
+  const response = await fetchWithRetry(
+    `${MUAPI_BASE_URL}/seedance-v2.0-watermark-remover`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify({ video: videoUrl }),
+    },
+    'MuAPI watermark removal',
+  );
+
+  const data = (await response.json()) as { id: string };
+  const predictionId = data.id;
+
+  const result = await pollPrediction(predictionId, {
+    maxAttempts: 60,       // Watermark removal is faster than generation
+    intervalMs: 5_000,
+  });
+
+  // If watermark removal succeeds, save the clean video; otherwise fall back to original
+  if (result.output) {
+    try {
+      return await saveVideo(result.output);
+    } catch (err) {
+      console.warn('[Watermark] Failed to save cleaned video, using original:', err);
+      return videoUrl;
+    }
+  }
+
+  return videoUrl;
 }
 
 // Progress callback type for streaming updates
@@ -217,9 +277,27 @@ function selectModel(request: VideoGenerationRequest): string {
     return SEEDANCE_MODELS[request.model as SeedanceModelKey];
   }
 
-  // Auto-select based on inputs
+  // Auto-select based on mode and inputs
+  if (request.mode === 'video-edit' && request.sourceVideo) {
+    return SEEDANCE_MODELS['video-edit'];
+  }
+
+  if (request.mode === 'i2v' && request.sourceImage) {
+    return SEEDANCE_MODELS['i2v'];
+  }
+
+  if (request.mode === 'extend' && request.sourceVideo) {
+    return SEEDANCE_MODELS['extend'];
+  }
+
+  if (request.mode === 'character') {
+    return SEEDANCE_MODELS['character'];
+  }
+
+  // When reference images are provided and no explicit model requested,
+  // prefer new-omni (newer model, potentially better quality) over omni-reference
   if (request.referenceImages && request.referenceImages.length > 0) {
-    return SEEDANCE_MODELS['omni-reference'];
+    return SEEDANCE_MODELS['new-omni'];
   }
 
   // Default: text-to-video
@@ -266,6 +344,9 @@ export async function generateVideo(
     duration: request.duration,
     aspectRatio: request.aspectRatio,
     referenceImages: request.referenceImages,
+    sourceImage: request.sourceImage,
+    sourceVideo: request.sourceVideo,
+    seed: request.seed,
   });
 
   if (trackingId) {
@@ -305,7 +386,27 @@ export async function generateVideo(
   }
 
   const remoteUrl = prediction.output ?? '';
-  const videoUrl = remoteUrl ? await saveVideo(remoteUrl) : '';
+  let videoUrl = remoteUrl ? await saveVideo(remoteUrl) : '';
+
+  // Step 5: Auto watermark removal (runs on every generation, ~$0.003/clip)
+  if (videoUrl) {
+    if (trackingId) {
+      emitGenerationEvent(trackingId, 'progress', {
+        progress: 93,
+        stage: 'Removing watermark',
+        message: 'Cleaning up watermark...',
+        predictionId,
+        model,
+      });
+    }
+
+    try {
+      videoUrl = await removeWatermark(videoUrl);
+    } catch (err) {
+      // Watermark removal is best-effort — don't fail the whole generation
+      console.warn('[Watermark] Removal failed, using original video:', err);
+    }
+  }
 
   const durationMs = Math.round(performance.now() - startTime);
 
@@ -319,7 +420,11 @@ export async function generateVideo(
   };
 }
 
-export function getCreditsRequired(duration: VideoDuration): number {
+export function getCreditsRequired(duration: VideoDuration, mode?: VideoGenerationMode): number {
+  if (mode && mode in CREDITS_PER_MODE) {
+    return CREDITS_PER_MODE[mode as keyof typeof CREDITS_PER_MODE][duration];
+  }
+  // Fallback to legacy flat pricing (t2v/i2v rates)
   return CREDITS_PER_DURATION[duration];
 }
 

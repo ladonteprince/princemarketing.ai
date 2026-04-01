@@ -60,7 +60,22 @@ export const generateVideoSchema = z.object({
   aspectRatio: z.enum(['16:9', '9:16', '1:1']).optional().default('16:9'),
   referenceImages: z.array(z.string().url()).max(9).optional(),
   qualityTier: z.enum(['starter', 'pro', 'agency']).optional().default('pro'),
-});
+  mode: z.enum(['t2v', 'i2v', 'extend', 'character', 'video-edit']).optional(),
+  sourceImage: z.string().url().optional(),
+  sourceVideo: z.string().url().optional(),
+  seed: z.number().int().min(0).optional(),
+}).refine(
+  (data) => {
+    // i2v mode requires sourceImage
+    if (data.mode === 'i2v' && !data.sourceImage) return false;
+    // extend mode requires sourceVideo
+    if (data.mode === 'extend' && !data.sourceVideo) return false;
+    return true;
+  },
+  {
+    message: 'i2v mode requires sourceImage; extend mode requires sourceVideo',
+  },
+);
 
 export const generateCopySchema = z.object({
   prompt: z.string().min(1).max(4_000),

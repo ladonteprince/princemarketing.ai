@@ -19,6 +19,10 @@ async function generateVideoInBackground(generationId: string, input: {
   aspectRatio: '16:9' | '9:16' | '1:1';
   referenceImages?: readonly string[];
   qualityTier: 'starter' | 'pro' | 'agency';
+  mode?: 't2v' | 'i2v' | 'extend' | 'character' | 'video-edit';
+  sourceImage?: string;
+  sourceVideo?: string;
+  seed?: number;
 }, userId: string) {
   const startTime = performance.now();
 
@@ -37,6 +41,10 @@ async function generateVideoInBackground(generationId: string, input: {
       aspectRatio: input.aspectRatio as '16:9' | '9:16' | '1:1',
       referenceImages: input.referenceImages,
       qualityTier: input.qualityTier,
+      mode: input.mode,
+      sourceImage: input.sourceImage,
+      sourceVideo: input.sourceVideo,
+      seed: input.seed,
     }, { generationId }); // Pass generationId for progress tracking
 
     // Transition to scoring state
@@ -223,6 +231,10 @@ export async function POST(request: NextRequest) {
       aspectRatio: (input.aspectRatio ?? '16:9') as '16:9' | '9:16' | '1:1',
       referenceImages: input.referenceImages,
       qualityTier: (input.qualityTier ?? tier) as 'starter' | 'pro' | 'agency',
+      mode: input.mode,
+      sourceImage: input.sourceImage,
+      sourceVideo: input.sourceVideo,
+      seed: input.seed,
     }, apiKeyRecord.userId).catch(console.error);
 
     // 8. Return immediately with 202 Accepted + stream URL

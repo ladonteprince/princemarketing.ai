@@ -2,6 +2,8 @@ import type { GenerationId } from '@/types/ids';
 import type { VideoDuration } from './constants';
 import type { SeedanceModelKey } from './VideoGenerator';
 
+export type VideoGenerationMode = 't2v' | 'i2v' | 'extend' | 'character' | 'video-edit';
+
 export type VideoGenerationRequest = {
   prompt: string;
   negativePrompt?: string;
@@ -10,6 +12,10 @@ export type VideoGenerationRequest = {
   referenceImages?: ReadonlyArray<string>;
   qualityTier: 'starter' | 'pro' | 'agency';
   model?: SeedanceModelKey;
+  mode?: VideoGenerationMode;       // Generation mode (default: 't2v')
+  sourceImage?: string;             // URL for i2v mode (image to animate)
+  sourceVideo?: string;             // URL for extend mode (video to extend)
+  seed?: number;                    // For reproducible generations
 };
 
 export type VideoGenerationResult = {
