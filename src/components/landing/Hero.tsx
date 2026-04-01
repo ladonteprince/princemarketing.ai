@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import NextImage from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { CodeBlock } from '@/components/docs/CodeBlock';
+import { HeroVideo } from '@/components/cinematic/HeroVideo';
 import { ArrowRight } from 'lucide-react';
 
 const HERO_CODE = `curl -X POST https://api.princemarketing.ai/v1/generate/image \\
@@ -15,11 +17,14 @@ const HERO_CODE = `curl -X POST https://api.princemarketing.ai/v1/generate/image
 export function Hero() {
   return (
     <section className="relative overflow-hidden">
-      {/* Gradient backdrop */}
-      <div className="absolute inset-0 bg-gradient-to-b from-forge-blue/5 via-transparent to-transparent pointer-events-none" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] sm:w-[600px] lg:w-[800px] h-[300px] sm:h-[400px] lg:h-[600px] bg-forge-blue/3 rounded-full blur-[120px] pointer-events-none" />
+      {/* Subtle video background — desktop only */}
+      <HeroVideo />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 lg:pt-24 pb-12 sm:pb-16 lg:pb-20">
+      {/* Gradient backdrop */}
+      <div className="absolute inset-0 bg-gradient-to-b from-forge-blue/5 via-transparent to-transparent pointer-events-none z-[1]" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] sm:w-[600px] lg:w-[800px] h-[300px] sm:h-[400px] lg:h-[600px] bg-forge-blue/3 rounded-full blur-[120px] pointer-events-none z-[1]" />
+
+      <div className="relative z-[2] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 lg:pt-24 pb-12 sm:pb-16 lg:pb-20">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* Left — copy */}
           <div>
@@ -73,6 +78,19 @@ export function Hero() {
               title="Terminal"
             />
           </div>
+        </div>
+
+        {/* Pipeline scene — cinematic visual */}
+        <div className="mt-12 sm:mt-16 relative rounded-xl overflow-hidden border border-white/6">
+          <NextImage
+            src="/images/hero-forge.png"
+            alt="API forge — code in, polished content out"
+            width={1400}
+            height={700}
+            className="w-full h-auto object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-void via-transparent to-transparent" />
         </div>
       </div>
     </section>

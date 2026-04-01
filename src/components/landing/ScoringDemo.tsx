@@ -1,4 +1,5 @@
 import { ScoreBadge } from '@/components/ui/ScoreBadge';
+import { RevealText } from '@/components/cinematic/RevealText';
 
 const DEMO_DIMENSIONS = [
   { name: 'Clarity', score: 9.0 },
@@ -22,11 +23,13 @@ export function ScoringDemo() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* Left — explanation */}
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white font-[family-name:var(--font-display)]">
-              12-dimension quality scoring.
-              <br />
-              <span className="text-forge-blue">Every single output.</span>
-            </h2>
+            <RevealText>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white font-[family-name:var(--font-display)]">
+                12-dimension quality scoring.
+                <br />
+                <span className="text-forge-blue">Every single output.</span>
+              </h2>
+            </RevealText>
             <p className="text-slate-400 mt-4 leading-relaxed text-sm sm:text-base">
               A critic agent powered by Claude evaluates every generation across 12 dimensions.
               AI Artifact Detection carries 1.3x weight because clients notice artifacts first.
