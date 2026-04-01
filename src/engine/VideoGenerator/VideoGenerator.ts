@@ -1,6 +1,7 @@
 import { refinePrompt } from '@/lib/claude';
 import { saveVideo } from '@/lib/storage';
 import { createGenerationId } from '@/types/ids';
+import { emitGenerationEvent } from '@/lib/generation-events';
 import type { VideoGenerationRequest, VideoGenerationResult } from './types';
 import { CREDITS_PER_DURATION, DEFAULT_ASPECT_RATIO, DEFAULT_DURATION } from './constants';
 import type { VideoDuration } from './constants';
@@ -9,6 +10,11 @@ import type { VideoDuration } from './constants';
 // All models go through MuAPI at https://api.muapi.ai/api/v1
 
 const MUAPI_BASE_URL = 'https://api.muapi.ai/api/v1';
+
+// Retry configuration (inspired by Claude Code's withRetry.ts)
+const BASE_DELAY_MS = 500;
+const MAX_RETRIES = 3;
+const MAX_CONSECUTIVE_OVERLOAD = 3;
 
 // Supported Seedance models
 const SEEDANCE_MODELS = {
@@ -27,6 +33,66 @@ type MuApiPrediction = {
   output?: string;
   error?: string;
 };
+
+// ─── Retry with Exponential Backoff ─────────────────────────────────────────
+
+function isTransientError(status: number): boolean {
+  return status === 429 || status === 503 || status === 529 || status >= 500;
+}
+
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  label: string,
+): Promise<Response> {
+  let lastError: Error | null = null;
+  let consecutiveOverload = 0;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(url, init);
+
+      if (response.ok) {
+        return response;
+      }
+
+      // Track overload errors separately (like Claude Code's 529 tracking)
+      if (response.status === 429 || response.status === 529) {
+        consecutiveOverload++;
+        if (consecutiveOverload >= MAX_CONSECUTIVE_OVERLOAD) {
+          const text = await response.text();
+          throw new Error(`${label}: ${MAX_CONSECUTIVE_OVERLOAD} consecutive overload errors (${response.status}): ${text}`);
+        }
+      } else {
+        consecutiveOverload = 0;
+      }
+
+      if (!isTransientError(response.status) || attempt === MAX_RETRIES) {
+        const text = await response.text();
+        throw new Error(`${label} error (${response.status}): ${text}`);
+      }
+
+      // Exponential backoff: 500ms, 1s, 2s, capped at 30s
+      const delay = Math.min(BASE_DELAY_MS * Math.pow(2, attempt), 30_000);
+      const jitter = Math.random() * delay * 0.2; // 20% jitter
+      console.warn(`[Retry] ${label} attempt ${attempt + 1}/${MAX_RETRIES} after ${response.status}, waiting ${Math.round(delay + jitter)}ms`);
+      await new Promise((resolve) => setTimeout(resolve, delay + jitter));
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+
+      // Network errors are retryable
+      if (attempt < MAX_RETRIES && !(lastError.message.includes('consecutive overload'))) {
+        const delay = Math.min(BASE_DELAY_MS * Math.pow(2, attempt), 30_000);
+        console.warn(`[Retry] ${label} attempt ${attempt + 1}/${MAX_RETRIES} after network error, waiting ${delay}ms`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      throw lastError;
+    }
+  }
+
+  throw lastError ?? new Error(`${label}: exhausted retries`);
+}
 
 // ─── MuAPI Helpers ──────────────────────────────────────────────────────────
 
@@ -65,43 +131,69 @@ async function createPrediction(params: {
     body.images_list = params.referenceImages.map((url) => url);
   }
 
-  const response = await fetch(`${MUAPI_BASE_URL}/${params.model}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
+  const response = await fetchWithRetry(
+    `${MUAPI_BASE_URL}/${params.model}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`MuAPI create prediction error (${response.status}): ${text}`);
-  }
+    'MuAPI create prediction',
+  );
 
   const data = (await response.json()) as { id: string };
   return data.id;
 }
 
+// Progress callback type for streaming updates
+export type ProgressCallback = (progress: {
+  percent: number;
+  stage: string;
+  message: string;
+  predictionStatus?: string;
+}) => void;
+
 async function pollPrediction(
   predictionId: string,
-  options?: { maxAttempts?: number; intervalMs?: number },
+  options?: {
+    maxAttempts?: number;
+    intervalMs?: number;
+    onProgress?: ProgressCallback;
+  },
 ): Promise<MuApiPrediction> {
   const apiKey = getApiKey();
   const maxAttempts = options?.maxAttempts ?? 120;
   const intervalMs = options?.intervalMs ?? 12_000; // 12s between polls
+  const onProgress = options?.onProgress;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const response = await fetch(
+    const response = await fetchWithRetry(
       `${MUAPI_BASE_URL}/predictions/${predictionId}/result`,
       { headers: { 'x-api-key': apiKey } },
+      'MuAPI poll',
     );
 
-    if (!response.ok) {
-      throw new Error(`MuAPI poll error (${response.status}): ${await response.text()}`);
-    }
-
     const prediction = (await response.json()) as MuApiPrediction;
+
+    // Calculate approximate progress based on attempt count and typical generation time
+    const progressPercent = Math.min(
+      Math.round((attempt / Math.max(maxAttempts * 0.6, 1)) * 85), // Cap at 85% during generation
+      85,
+    );
+
+    if (onProgress) {
+      onProgress({
+        percent: prediction.status === 'completed' ? 90 : progressPercent,
+        stage: prediction.status === 'pending' ? 'Queued' : 'Generating video',
+        message: prediction.status === 'pending'
+          ? 'Waiting for generation slot...'
+          : 'Rendering frames...',
+        predictionStatus: prediction.status,
+      });
+    }
 
     if (prediction.status === 'completed') {
       return prediction;
@@ -138,16 +230,35 @@ function selectModel(request: VideoGenerationRequest): string {
 
 export async function generateVideo(
   request: VideoGenerationRequest,
+  options?: { generationId?: string },
 ): Promise<VideoGenerationResult> {
   const startTime = performance.now();
+  const trackingId = options?.generationId;
 
   // Step 1: Refine prompt for cinematic quality
+  if (trackingId) {
+    emitGenerationEvent(trackingId, 'progress', {
+      progress: 5,
+      stage: 'Refining prompt',
+      message: 'Enhancing your prompt for cinematic quality...',
+    });
+  }
+
   const refinedPrompt = await refinePrompt(request.prompt, {
     type: 'video',
   });
 
   // Step 2: Select model and create prediction
   const model = selectModel(request);
+
+  if (trackingId) {
+    emitGenerationEvent(trackingId, 'progress', {
+      progress: 10,
+      stage: 'Submitting to video model',
+      message: 'Submitting to video model...',
+    });
+  }
+
   const predictionId = await createPrediction({
     model,
     prompt: refinedPrompt,
@@ -157,10 +268,42 @@ export async function generateVideo(
     referenceImages: request.referenceImages,
   });
 
-  // Step 3: Poll until complete
-  const prediction = await pollPrediction(predictionId);
+  if (trackingId) {
+    emitGenerationEvent(trackingId, 'progress', {
+      progress: 15,
+      stage: 'Rendering video',
+      message: 'Video generation in progress. Rendering frames...',
+      predictionId,
+      model,
+    });
+  }
+
+  // Step 3: Poll until complete — with progress streaming
+  const prediction = await pollPrediction(predictionId, {
+    onProgress: trackingId
+      ? (progress) => {
+          emitGenerationEvent(trackingId, 'progress', {
+            progress: progress.percent,
+            stage: progress.stage,
+            message: progress.message,
+            predictionId,
+            model,
+          });
+        }
+      : undefined,
+  });
 
   // Step 4: Download video from MuAPI and save locally
+  if (trackingId) {
+    emitGenerationEvent(trackingId, 'progress', {
+      progress: 90,
+      stage: 'Downloading video',
+      message: 'Video rendered. Downloading to storage...',
+      predictionId,
+      model,
+    });
+  }
+
   const remoteUrl = prediction.output ?? '';
   const videoUrl = remoteUrl ? await saveVideo(remoteUrl) : '';
 

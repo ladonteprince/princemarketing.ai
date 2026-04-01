@@ -6,10 +6,12 @@ import { badRequest, unauthorized, rateLimited, serverError } from '@/lib/apiRes
 import { checkRateLimit, type Tier } from '@/lib/rate-limiter';
 import { logAnalyticsEvent } from '@/lib/analytics';
 import { validateApiKey } from '@/lib/validateApiKey';
+import { emitGenerationEvent } from '@/lib/generation-events';
 import { prisma } from '@/lib/db';
 import type { VideoDuration } from '@/engine/VideoGenerator/constants';
 
 // Background video generation — runs after 202 is returned
+// State machine: queued → processing → scoring → passed/failed
 async function generateVideoInBackground(generationId: string, input: {
   prompt: string;
   negativePrompt?: string;
@@ -20,6 +22,13 @@ async function generateVideoInBackground(generationId: string, input: {
 }, userId: string) {
   const startTime = performance.now();
 
+  // Emit: processing started
+  emitGenerationEvent(generationId, 'status_change', {
+    status: 'processing',
+    previousStatus: 'queued',
+    message: 'Video generation started.',
+  });
+
   try {
     const result = await generateVideo({
       prompt: input.prompt,
@@ -28,6 +37,24 @@ async function generateVideoInBackground(generationId: string, input: {
       aspectRatio: input.aspectRatio as '16:9' | '9:16' | '1:1',
       referenceImages: input.referenceImages,
       qualityTier: input.qualityTier,
+    }, { generationId }); // Pass generationId for progress tracking
+
+    // Transition to scoring state
+    await prisma.generation.update({
+      where: { id: generationId },
+      data: { status: 'scoring' },
+    });
+
+    emitGenerationEvent(generationId, 'status_change', {
+      status: 'scoring',
+      previousStatus: 'processing',
+      message: 'Video rendered. Running quality analysis...',
+    });
+
+    emitGenerationEvent(generationId, 'scoring', {
+      progress: 92,
+      stage: 'Quality scoring',
+      message: 'Analyzing 12 quality dimensions...',
     });
 
     // Score the output
@@ -40,12 +67,13 @@ async function generateVideoInBackground(generationId: string, input: {
     });
 
     const durationMs = Math.round(performance.now() - startTime);
+    const finalStatus = verdict.passed ? 'passed' : 'failed';
 
     // Update generation record with result
     await prisma.generation.update({
       where: { id: generationId },
       data: {
-        status: verdict.passed ? 'passed' : 'failed',
+        status: finalStatus,
         resultUrl: result.videoUrl,
         refinedPrompt: result.refinedPrompt,
         score: verdict.aggregateScore,
@@ -63,6 +91,23 @@ async function generateVideoInBackground(generationId: string, input: {
       },
     });
 
+    // Emit: completed with results
+    emitGenerationEvent(generationId, 'completed', {
+      status: finalStatus,
+      previousStatus: 'scoring',
+      resultUrl: result.videoUrl,
+      score: verdict.aggregateScore,
+      feedback: verdict.feedback,
+      model: result.model,
+      predictionId: result.predictionId,
+      durationMs,
+      progress: 100,
+      stage: 'Complete',
+      message: verdict.passed
+        ? `Video passed quality check (${verdict.aggregateScore.toFixed(1)}/10)`
+        : `Video scored ${verdict.aggregateScore.toFixed(1)}/10 — below ${input.qualityTier} threshold`,
+    });
+
     logAnalyticsEvent({
       timestamp: new Date().toISOString(),
       userId,
@@ -77,14 +122,23 @@ async function generateVideoInBackground(generationId: string, input: {
     });
   } catch (err) {
     console.error(`[VideoBackground] Generation ${generationId} failed:`, err);
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 
     await prisma.generation.update({
       where: { id: generationId },
       data: {
         status: 'failed',
-        errorMessage: err instanceof Error ? err.message : 'Unknown error',
+        errorMessage,
       },
     }).catch(console.error);
+
+    // Emit: failed with error details
+    emitGenerationEvent(generationId, 'failed', {
+      status: 'failed',
+      error: errorMessage,
+      message: `Generation failed: ${errorMessage}`,
+      progress: 0,
+    });
 
     // Refund credits on failure
     await prisma.creditBalance.update({
@@ -171,14 +225,16 @@ export async function POST(request: NextRequest) {
       qualityTier: (input.qualityTier ?? tier) as 'starter' | 'pro' | 'agency',
     }, apiKeyRecord.userId).catch(console.error);
 
-    // 8. Return immediately with 202 Accepted
+    // 8. Return immediately with 202 Accepted + stream URL
     const response = NextResponse.json(
       {
         type: 'success',
         data: {
           generationId: generation.id,
           status: 'processing',
-          message: 'Video generation started. Poll GET /api/v1/generations/{id} for status.',
+          message: 'Video generation started. Stream real-time progress or poll for status.',
+          streamUrl: `/api/v1/generations/${generation.id}/stream`,
+          pollUrl: `/api/v1/generations/${generation.id}`,
         },
         meta: {
           generationId: generation.id,
