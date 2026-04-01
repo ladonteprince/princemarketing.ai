@@ -18,6 +18,7 @@ async function generateVideoInBackground(generationId: string, input: {
   duration: VideoDuration;
   aspectRatio: '16:9' | '9:16' | '1:1';
   referenceImages?: readonly string[];
+  imageLabels?: readonly string[];
   qualityTier: 'starter' | 'pro' | 'agency';
   mode?: 't2v' | 'i2v' | 'extend' | 'character' | 'video-edit';
   sourceImage?: string;
@@ -40,6 +41,7 @@ async function generateVideoInBackground(generationId: string, input: {
       duration: input.duration,
       aspectRatio: input.aspectRatio as '16:9' | '9:16' | '1:1',
       referenceImages: input.referenceImages,
+      imageLabels: input.imageLabels,
       qualityTier: input.qualityTier,
       mode: input.mode,
       sourceImage: input.sourceImage,
@@ -230,6 +232,7 @@ export async function POST(request: NextRequest) {
       duration,
       aspectRatio: (input.aspectRatio ?? '16:9') as '16:9' | '9:16' | '1:1',
       referenceImages: input.referenceImages,
+      imageLabels: input.imageLabels,
       qualityTier: (input.qualityTier ?? tier) as 'starter' | 'pro' | 'agency',
       mode: input.mode,
       sourceImage: input.sourceImage,

@@ -10,6 +10,7 @@ export type VideoGenerationRequest = {
   duration: VideoDuration;
   aspectRatio: '16:9' | '9:16' | '1:1';
   referenceImages?: ReadonlyArray<string>;
+  imageLabels?: ReadonlyArray<string>;  // Labels for @image1..@image9 tags (e.g. "brand character", "product", "background")
   qualityTier: 'starter' | 'pro' | 'agency';
   model?: SeedanceModelKey;
   mode?: VideoGenerationMode;       // Generation mode (default: 't2v')

@@ -322,8 +322,15 @@ export async function generateVideo(
     });
   }
 
+  // Pass reference image tags to prompt refinement so Claude uses @imageN syntax
+  const referenceImageContext = request.referenceImages?.map((url, i) => ({
+    url,
+    label: request.imageLabels?.[i] ?? `reference ${i + 1}`,
+  }));
+
   const refinedPrompt = await refinePrompt(request.prompt, {
     type: 'video',
+    referenceImages: referenceImageContext,
   });
 
   // Step 2: Select model and create prediction

@@ -16,16 +16,35 @@ if (process.env.NODE_ENV !== 'production') {
 // 2. Prompt refinement — takes a raw user prompt and returns a production-grade prompt
 export async function refinePrompt(
   rawPrompt: string,
-  context: { type: 'image' | 'video' | 'copy'; style?: string; tone?: string }
+  context: {
+    type: 'image' | 'video' | 'copy';
+    style?: string;
+    tone?: string;
+    referenceImages?: ReadonlyArray<{ url: string; label?: string }>;
+  }
 ): Promise<string> {
+  // Build reference image context for the refinement prompt
+  let imageContext = '';
+  if (context.referenceImages && context.referenceImages.length > 0) {
+    const imageDescriptions = context.referenceImages.map((img, i) => {
+      const tag = `@image${i + 1}`;
+      const label = img.label ?? `reference image ${i + 1}`;
+      return `  ${tag} = ${label}`;
+    }).join('\n');
+
+    imageContext = `\n\nReference images available (use @imageN tags in the prompt to reference them):\n${imageDescriptions}\n\nIMPORTANT: Incorporate @imageN tags naturally into the refined prompt to reference the uploaded images. For example: "@image1 walks confidently through a modern office" or "Close-up of @image1 wearing the outfit from @image2".`;
+  }
+
   const response = await claude.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 1_024,
-    system: `You are a creative director at a top-tier marketing agency. Your job is to take a raw creative brief and refine it into a precise, production-ready prompt. Be specific about visual details, composition, lighting, color palette, and mood. Never use hype words. Output ONLY the refined prompt — no preamble, no explanation.`,
+    system: `You are a creative director at a top-tier marketing agency. Your job is to take a raw creative brief and refine it into a precise, production-ready prompt. Be specific about visual details, composition, lighting, color palette, and mood. Never use hype words. Output ONLY the refined prompt — no preamble, no explanation.
+
+When reference images are provided with @imageN tags, you MUST preserve and use those tags in your refined prompt. The tags reference uploaded images that the video model will use for visual consistency.`,
     messages: [
       {
         role: 'user',
-        content: `Refine this ${context.type} prompt for production use.\n\nRaw prompt: ${rawPrompt}\n${context.style ? `Style: ${context.style}` : ''}\n${context.tone ? `Tone: ${context.tone}` : ''}`,
+        content: `Refine this ${context.type} prompt for production use.\n\nRaw prompt: ${rawPrompt}\n${context.style ? `Style: ${context.style}` : ''}${context.tone ? `\nTone: ${context.tone}` : ''}${imageContext}`,
       },
     ],
   });

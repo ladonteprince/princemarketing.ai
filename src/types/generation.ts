@@ -59,6 +59,7 @@ export const generateVideoSchema = z.object({
   duration: z.enum(['5', '10', '15']).optional().default('5'),
   aspectRatio: z.enum(['16:9', '9:16', '1:1']).optional().default('16:9'),
   referenceImages: z.array(z.string().url()).max(9).optional(),
+  imageLabels: z.array(z.string().max(100)).max(9).optional(),  // Labels for @image1..@image9 (e.g. "character", "product", "location")
   qualityTier: z.enum(['starter', 'pro', 'agency']).optional().default('pro'),
   mode: z.enum(['t2v', 'i2v', 'extend', 'character', 'video-edit']).optional(),
   sourceImage: z.string().url().optional(),
