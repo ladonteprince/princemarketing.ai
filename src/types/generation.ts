@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { GenerationId, UserId } from './ids';
 
 // 1. Generation type discriminator
-export const GENERATION_TYPES = ['image', 'video', 'copy'] as const;
+export const GENERATION_TYPES = ['image', 'video', 'audio', 'copy'] as const;
 export type GenerationType = (typeof GENERATION_TYPES)[number];
 
 // 2. Status progression: queued → processing → scoring → passed/failed → delivered
@@ -87,6 +87,35 @@ export const generateCopySchema = z.object({
   qualityTier: z.enum(['starter', 'pro', 'agency']).optional().default('pro'),
 });
 
+export const generateAudioSchema = z.object({
+  prompt: z.string().min(1).max(4_000),
+  mode: z.enum([
+    'create-music', 'remix', 'extend', 'sounds',
+    'lyrics', 'add-vocals', 'add-instrumental', 'mashup',
+  ]),
+  duration: z.enum(['15', '30', '60', '120']).optional().default('30'),
+  style: z.string().max(500).optional(),
+  sourceAudio: z.string().url().optional(),
+  lyrics: z.string().max(10_000).optional(),
+  qualityTier: z.enum(['starter', 'pro', 'agency']).optional().default('pro'),
+}).refine(
+  (data) => {
+    // remix/extend/mashup require sourceAudio
+    if (['remix', 'extend', 'mashup'].includes(data.mode) && !data.sourceAudio) return false;
+    return true;
+  },
+  {
+    message: 'remix, extend, and mashup modes require sourceAudio URL',
+  },
+);
+
+export const generateSyncSchema = z.object({
+  videoUrl: z.string().url(),
+  audioDescription: z.string().max(2_000).optional(),
+});
+
 export type GenerateImageInput = z.infer<typeof generateImageSchema>;
 export type GenerateVideoInput = z.infer<typeof generateVideoSchema>;
+export type GenerateAudioInput = z.infer<typeof generateAudioSchema>;
+export type GenerateSyncInput = z.infer<typeof generateSyncSchema>;
 export type GenerateCopyInput = z.infer<typeof generateCopySchema>;

@@ -62,6 +62,39 @@ export async function saveImage(
  * @param remoteUrl - The URL to download from
  * @returns Public URL to the saved video
  */
+/**
+ * Download an audio file from a remote URL and save locally.
+ *
+ * @param remoteUrl - The URL to download from
+ * @param ext - File extension (default: 'mp3')
+ * @returns Public URL to the saved audio
+ */
+export async function saveAudio(remoteUrl: string, ext = 'mp3'): Promise<string> {
+  const dateFolder = getDateFolder();
+  const filename = `${crypto.randomUUID()}.${ext}`;
+
+  const dirPath = join(STORAGE_DIR, 'audio', dateFolder);
+  const filePath = join(dirPath, filename);
+
+  await ensureDir(dirPath);
+
+  const response = await fetch(remoteUrl, { signal: AbortSignal.timeout(60000) });
+  if (!response.ok) {
+    throw new Error(`Failed to download audio from ${remoteUrl}: ${response.status}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  await writeFile(filePath, Buffer.from(arrayBuffer));
+
+  return `${PUBLIC_URL}/audio/${dateFolder}/${filename}`;
+}
+
+/**
+ * Download a video from a remote URL (e.g. MuAPI result) and save locally.
+ *
+ * @param remoteUrl - The URL to download from
+ * @returns Public URL to the saved video
+ */
 export async function saveVideo(remoteUrl: string): Promise<string> {
   const dateFolder = getDateFolder();
   const filename = `${crypto.randomUUID()}.mp4`;
