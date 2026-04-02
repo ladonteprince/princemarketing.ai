@@ -174,9 +174,11 @@ model Subscription {
 model CreditBalance {
   id           String   @id @default(cuid())
   userId       String   @unique @map("user_id")
-  imageCredits Int      @default(100) @map("image_credits")
-  videoCredits Int      @default(10) @map("video_credits")
-  copyCredits  Int      @default(500) @map("copy_credits")
+  imageCredits Int      @default(50) @map("image_credits")    // Starter: 50, Growth: 200, Scale: 1000
+  videoCredits Int      @default(5) @map("video_credits")     // Starter: 5, Growth: 25, Scale: 100
+  copyCredits  Int      @default(200) @map("copy_credits")    // Starter: 200, Growth: 1000, Scale: 5000
+  audioCredits Int      @default(5) @map("audio_credits")     // Starter: 5, Growth: 20, Scale: 100
+  agentCredits Int      @default(10) @map("agent_credits")    // Starter: 10, Growth: 50, Scale: unlimited (999999)
   resetAt      DateTime @default(now()) @map("reset_at")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")

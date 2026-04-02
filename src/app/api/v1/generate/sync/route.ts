@@ -89,7 +89,7 @@ async function syncInBackground(generationId: string, input: {
     // Refund credits on failure
     await prisma.creditBalance.update({
       where: { userId },
-      data: { videoCredits: { increment: creditsRequired } },
+      data: { audioCredits: { increment: creditsRequired } },
     }).catch(console.error);
   }
 }
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Check credit balance
     const creditBalance = apiKeyRecord.user.creditBalance;
-    if (!creditBalance || creditBalance.videoCredits < creditsRequired) {
+    if (!creditBalance || creditBalance.audioCredits < creditsRequired) {
       return NextResponse.json(
         { type: 'error', error: { code: 'INSUFFICIENT_CREDITS', message: 'Insufficient audio credits for sync.' } },
         { status: 402 },
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
     // 5. Deduct credits
     await prisma.creditBalance.update({
       where: { userId: apiKeyRecord.user.id },
-      data: { videoCredits: { decrement: creditsRequired } },
+      data: { audioCredits: { decrement: creditsRequired } },
     });
 
     // 6. Create generation record
