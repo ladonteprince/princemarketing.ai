@@ -66,14 +66,19 @@ export async function POST(request: NextRequest) {
       qualityTier: input.qualityTier,
     });
 
-    // 6. Score the output via Critic Agent
-    const verdict = await evaluateGeneration({
-      generationId: result.generationId,
-      type: 'image',
-      prompt: input.prompt,
-      resultUrl: result.imageUrl,
-      qualityTier: input.qualityTier,
-    });
+    // 6. Score the output via Critic Agent (advisory — never blocks generation)
+    let verdict: any = { passed: true, aggregateScore: 0, dimensions: [], feedback: "Scoring skipped" };
+    try {
+      verdict = await evaluateGeneration({
+        generationId: result.generationId,
+        type: 'image',
+        prompt: input.prompt,
+        resultUrl: result.imageUrl,
+        qualityTier: input.qualityTier,
+      });
+    } catch (scoringErr) {
+      console.error('[ImageGen] Scoring failed, continuing:', scoringErr);
+    }
 
     // 7. Deduct credits after successful generation
     await prisma.creditBalance.update({
