@@ -33,7 +33,8 @@ type MuApiPrediction = {
   id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   output?: string;
-  error?: string;
+  outputs?: string[];
+  error?: string | null;
 };
 
 // ─── Retry with Exponential Backoff ─────────────────────────────────────────
@@ -164,8 +165,8 @@ async function createPrediction(params: {
     'MuAPI create prediction',
   );
 
-  const data = (await response.json()) as { id: string };
-  return data.id;
+  const data = (await response.json()) as { id?: string; request_id?: string };
+  return data.request_id ?? data.id ?? '';
 }
 
 // ─── Auto Watermark Removal ────────────────────────────────────────────────
@@ -392,7 +393,7 @@ export async function generateVideo(
     });
   }
 
-  const remoteUrl = prediction.output ?? '';
+  const remoteUrl = prediction.output ?? prediction.outputs?.[0] ?? '';
   let videoUrl = remoteUrl ? await saveVideo(remoteUrl) : '';
 
   // Step 5: Auto watermark removal (runs on every generation, ~$0.003/clip)
