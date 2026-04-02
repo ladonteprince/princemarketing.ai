@@ -80,7 +80,31 @@ export async function POST(request: NextRequest) {
       console.error('[ImageGen] Scoring failed, continuing:', scoringErr);
     }
 
-    // 7. Deduct credits after successful generation
+    // 7. Store generation record in DB so it appears in Assets
+    await prisma.generation.create({
+      data: {
+        userId: apiKeyRecord.userId,
+        type: 'image',
+        status: 'passed',
+        prompt: input.prompt,
+        refinedPrompt: result.refinedPrompt,
+        resultUrl: result.imageUrl,
+        score: verdict.aggregateScore ?? 0,
+        creditsConsumed: creditsRequired,
+        durationMs: result.durationMs,
+        metadata: {
+          model: result.model,
+          score: {
+            aggregate: verdict.aggregateScore,
+            passed: verdict.passed,
+            dimensions: verdict.dimensions,
+            feedback: verdict.feedback,
+          },
+        },
+      },
+    }).catch((err: unknown) => console.error('[ImageGen] Failed to store generation:', err));
+
+    // 8. Deduct credits after successful generation
     await prisma.creditBalance.update({
       where: { userId: apiKeyRecord.user.id },
       data: { imageCredits: { decrement: creditsRequired } },
