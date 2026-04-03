@@ -65,6 +65,7 @@ export const generateVideoSchema = z.object({
   sourceImage: z.string().url().optional(),
   sourceVideo: z.string().url().optional(),
   seed: z.number().int().min(0).optional(),
+  includeAudio: z.boolean().optional(),
 }).refine(
   (data) => {
     // i2v mode requires sourceImage

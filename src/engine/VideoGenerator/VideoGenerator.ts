@@ -117,12 +117,14 @@ async function createPrediction(params: {
   sourceImage?: string;
   sourceVideo?: string;
   seed?: number;
+  includeAudio?: boolean;
 }): Promise<string> {
   const apiKey = getApiKey();
 
   const negativePrompt = [
     'NO TEXT, NO SUBTITLES, NO CAPTIONS',
     params.negativePrompt,
+    params.includeAudio === false ? 'NO BACKGROUND MUSIC, NO SOUND, NO AUDIO, SILENT VIDEO' : undefined,
   ].filter(Boolean).join(', ');
 
   const body: Record<string, unknown> = {
@@ -355,6 +357,7 @@ export async function generateVideo(
     sourceImage: request.sourceImage,
     sourceVideo: request.sourceVideo,
     seed: request.seed,
+    includeAudio: request.includeAudio,
   });
 
   if (trackingId) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateVideoSchema } from '@/types/generation';
 import { generateVideo, getCreditsRequired } from '@/engine/VideoGenerator/VideoGenerator';
 import { evaluateGeneration } from '@/engine/CriticAgent/CriticAgent';
+import { evaluateWithGemini } from '@/engine/CriticAgent/GeminiCritic';
 import { badRequest, unauthorized, rateLimited, serverError } from '@/lib/apiResponse';
 import { checkRateLimit, type Tier } from '@/lib/rate-limiter';
 import { logAnalyticsEvent } from '@/lib/analytics';
@@ -79,6 +80,25 @@ async function generateVideoInBackground(generationId: string, input: {
       });
     } catch (scoringErr) {
       console.error(`[VideoBackground] Scoring failed for ${generationId}, marking as passed anyway:`, scoringErr);
+    }
+
+    // Enhanced Gemini multimodal scoring — actually watches the video
+    // Gemini is more reliable for video analysis (temporal artifacts, flicker, motion)
+    if (result.videoUrl) {
+      try {
+        const geminiVerdict = await evaluateWithGemini({
+          generationId,
+          type: 'video',
+          prompt: input.prompt,
+          resultUrl: result.videoUrl,
+          qualityTier: input.qualityTier,
+        });
+        // For video, Gemini's multimodal analysis is superior — it watches every frame
+        verdict = geminiVerdict;
+        console.log(`[VideoBackground] Gemini scored ${generationId}: ${geminiVerdict.aggregateScore.toFixed(1)}/10`);
+      } catch (geminiErr) {
+        console.error(`[VideoBackground] Gemini scoring failed for ${generationId}, using Claude score:`, geminiErr);
+      }
     }
 
     const durationMs = Math.round(performance.now() - startTime);

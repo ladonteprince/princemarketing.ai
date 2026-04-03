@@ -17,6 +17,7 @@ export type VideoGenerationRequest = {
   sourceImage?: string;             // URL for i2v mode (image to animate)
   sourceVideo?: string;             // URL for extend mode (video to extend)
   seed?: number;                    // For reproducible generations
+  includeAudio?: boolean;           // When false, adds silent-video directives to negative prompt
 };
 
 export type VideoGenerationResult = {
