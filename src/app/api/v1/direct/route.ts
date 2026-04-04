@@ -198,14 +198,73 @@ REVELATION (brand positioning):
 → Goal: Position content as part of a larger ongoing value system
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NEUROCHEMICAL PRODUCTION MAPPING — The WHY behind each technique choice:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Use this to select techniques based on which neurochemical response you want to trigger. Prioritize Priority 1 (well-replicated) over lower tiers.
+
+DOPAMINE (reward prediction error — engagement, "wanting"):
+[Priority 1] Musical tension-resolution structure → caudate (anticipation) + NAcc (peak)
+[Priority 1] Harmonic expectation violation (deceptive cadences) → striatal prediction error
+[Priority 3] Plot twist / visual reveal timing → RPE maximization (theoretical but sound)
+Techniques: Ostinato building to unexpected resolution, withhold payoff, misdirection then reveal
+
+NOREPINEPHRINE (arousal — attention, alertness, orienting):
+[Priority 2] Sudden high-intensity audio stingers → LC phasic burst → cortical arousal
+[Priority 2] Darkness/low-key lighting → amygdala → LC → NE → sympathetic arousal
+[Priority 1] Abrupt visual transients (jump cuts, crash zooms) → orienting response
+Techniques: Stingers, impacts, hard cuts, handheld, high-contrast shadows, sudden silence
+
+CORTISOL (sustained threat — enhanced threat memory encoding):
+[Priority 2] Sustained narrative threat (20+ min, not individual jump scares)
+[Priority 1] Cool light (5000K+) → melanopsin → SCN → HPA axis → cortisol
+Techniques: Low-key lighting, cool color temperature, unresolvable dread, Dutch angles
+
+OXYTOCIN (social bonding — trust, empathy, prosocial behavior):
+[Priority 2] Close-up faces in character-driven emotional narrative → OT-permissive context
+[Priority 2] Steadicam footage → rolandic mu desynchronization → embodied simulation
+[Priority 1] Warm lighting (2700K) → melatonin-permissive → relaxation + safety
+Techniques: CU/MCU of faces, warm practicals, shallow DOF, gentle dolly in, familiar voices
+
+SEROTONIN (mood regulation — satisfaction, well-being):
+[Priority 1] Bright, high-luminance scenes → retinal-raphe pathway → DRN serotonin
+[Priority 1] Warm color temperature → melatonin-permissive → serotonin-dominant state
+Techniques: High-key lighting, bright exteriors, golden hour, resolved musical phrases
+
+ENDORPHINS (pleasure/relief — catharsis, "chills"):
+[Priority 1] Musical climax with opioid-mediated emotional peak (Mallik 2017, causal)
+[Priority 1] Emotional drama → pain threshold increase (Dunbar 2016, direct measurement)
+[Priority 1] Laughter → endorphin release (multiple labs)
+Techniques: Crescendo resolving to emotional payoff, comedic smash cuts, cathartic release
+
+ACETYLCHOLINE (focused attention — cue detection, selective processing):
+[Priority 3] Rack focus → attentional spotlight redirect (FEF/SPL pathway)
+[Priority 3] Selective lighting on one subject → pre-filtered attention
+[Priority 3] Audio ducking (music dips for dialogue) → signal-to-noise enhancement
+Techniques: Rack focus, shallow DOF, spotlight/practical lighting, audio ducking, isolation
+
+GABA (calming — parasympathetic dominance, cognitive rest):
+[Priority 3] Achieved by REMOVING arousal triggers, not by active techniques
+[Priority 3] Slow pacing, long takes, ambient drones → auditory habituation
+Techniques: Wide shots with negative space, slow dissolves, ambient room tone, silence
+
+EVIDENCE-BASED DECISION HIERARCHY:
+Priority 1 — USE DIRECTLY: Shot size→FFA/PPA, AV sync within TBW, musical anticipation-resolution→dopamine, continuity editing, cool vs warm color temperature
+Priority 2 — USE WITH MODERATE CONFIDENCE: Bass→somatosensory, silence after sound→orienting, stingers→NE/LC, close-up face+narrative→OT, darkness→amygdala
+Priority 3 — USE AS HEURISTICS: Rack focus→ACh, Steadicam→embodied simulation, Dutch angle→stress, GABA via slow pacing
+Priority 4 — AVOID STRONG CLAIMS: Specific color hues→amygdala (not supported), infrasound→dread (null in controlled studies)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 YOUR TASK:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Using the frameworks above, enrich the raw scene prompt into a production-ready prompt. Consider:
-1. The ATTENTION ROLE determines the production approach (see mapping above)
-2. The TARGET EMOTION determines shot selection (see emotional shot table above)
-3. The SCENE POSITION (${input.sceneIndex + 1}/${input.totalScenes}) affects pacing — early scenes establish, middle scenes build, final scenes resolve
-4. The DURATION (${input.duration}s) constrains complexity — shorter scenes need simpler camera moves
+Using ALL THREE frameworks above (Cinematography + Music/Sound + Neurochemical Mapping), enrich the raw scene prompt. Your decisions should be:
+1. WHAT technique to use → from the Cinematography + Music decision trees
+2. WHY that technique → from the Neurochemical Mapping (which brain system does it target?)
+3. WHEN in the scene → from the Attention Architecture role mapping
+4. The SCENE POSITION (${input.sceneIndex + 1}/${input.totalScenes}) affects pacing — early scenes establish, middle scenes build, final scenes resolve
+5. The DURATION (${input.duration}s) constrains complexity — shorter scenes need simpler camera moves
+6. Prefer Priority 1-2 neurochemical techniques over Priority 3-4
 
 CAMERA SPEC (always include): "Shot on Phase One XF IQ4 150MP medium format, Schneider Kreuznach 80mm f/2.8"
 NEGATIVE PROMPT (always include): "NO TEXT. NO SUBTITLES. NO CAPTIONS."
@@ -220,7 +279,9 @@ Return ONLY valid JSON:
   "composition": "Composition technique with specific placement details",
   "soundDesign": "Non-diegetic scoring approach and ambient sound",
   "sfx": "Specific sound effects and their timing",
-  "negativePrompt": "NO TEXT. NO SUBTITLES. NO CAPTIONS."
+  "negativePrompt": "NO TEXT. NO SUBTITLES. NO CAPTIONS.",
+  "neurochemicalTargets": ["List the primary neurochemicals this scene is designed to trigger, e.g. dopamine, oxytocin, norepinephrine"],
+  "evidenceTier": "The lowest confidence tier used in your technique selection (Priority 1, 2, 3, or 4)"
 }`;
 }
 
@@ -285,6 +346,8 @@ type DirectorOutput = {
   soundDesign: string;
   sfx: string;
   negativePrompt: string;
+  neurochemicalTargets: string[];
+  evidenceTier: string;
 };
 
 // ---------------------------------------------------------------------------
