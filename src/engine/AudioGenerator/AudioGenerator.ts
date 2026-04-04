@@ -321,3 +321,8 @@ export function getAudioCreditsRequired(
 }
 
 export { SUNO_ENDPOINTS, DEFAULT_AUDIO_DURATION };
+
+// WHY re-export here: allows the existing API route to import from a single module
+// and choose between Suno (generateAudio) and Lyria (generateWithLyria) at runtime.
+// The existing generateAudio function and all its callers remain untouched.
+export { generateWithLyria } from './LyriaGenerator';

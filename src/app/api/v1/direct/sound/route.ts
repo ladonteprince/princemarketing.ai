@@ -408,7 +408,8 @@ Return ONLY valid JSON:
     }
   ],
   "sunoPrompt": "A single paragraph describing the entire score for Suno to generate. Include tempo, key, instruments, style, and timing cues. Be specific about what happens when. No lyrics. No vocals (unless the style calls for humming/chanting).",
-  "sunoStyle": "Comma-separated style tags for Suno (e.g. cinematic, electronic, orchestral)",
+  "lyriaPrompt": "The SAME score but in Lyria 3 timestamp format. Each section uses [M:SS - M:SS] format. Example: [0:00 - 0:10] Intro: soft lo-fi beat with vinyl crackle. [0:10 - 0:30] Verse: warm piano melody and gentle percussion at 90 BPM. Always end with 'Instrumental only, no vocals.' unless voiceover requires vocal elements.",
+  "sunoStyle": "Comma-separated style tags (e.g. cinematic, electronic, orchestral)",
   "sunoDuration": ${input.totalDuration},
   "voiceoverTimestamps": ${input.voiceoverScript ? '[{"startTime": number, "endTime": number, "text": "voiceover segment", "duckMusic": true}]' : '[]'},
   "neurochemicalProfile": {
@@ -491,6 +492,7 @@ type VoiceoverTimestamp = {
 type SoundDirectorOutput = {
   soundSkeleton: SoundSkeletonEntry[];
   sunoPrompt: string;
+  lyriaPrompt: string;
   sunoStyle: string;
   sunoDuration: number;
   voiceoverTimestamps: VoiceoverTimestamp[];
