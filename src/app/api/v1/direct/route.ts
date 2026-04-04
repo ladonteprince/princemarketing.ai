@@ -13,13 +13,111 @@ import { success, badRequest, serverError } from '@/lib/apiResponse';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_MODEL = 'gemini-3.1-pro-preview';
+const PINECONE_HOST = 'https://prince-production-brain-ya8e9us.svc.aped-4627-b74a.pinecone.io';
+const PINECONE_NS = 'production-research';
 
-// WHY: Matching the exact Gemini calling pattern from GeminiCritic.ts
-// so we get structured JSON output without markdown wrapping.
 function getApiKey(): string {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('[GeminiDirector] GEMINI_API_KEY is not set');
   return key;
+}
+
+// ---------------------------------------------------------------------------
+// RAG: Query the Production Brain vector store
+// WHY: Every scene decision is informed by the full research corpus — 125
+// vectors across neurochemical mapping, cinematography, music/sound design,
+// and attention architecture. The Director never operates from memory alone;
+// it always consults the primary literature via semantic search.
+// ---------------------------------------------------------------------------
+
+async function queryProductionBrain(
+  scenePrompt: string,
+  emotion: string,
+  attentionRole: string,
+  topK: number = 5,
+): Promise<string> {
+  const openaiKey = process.env.OPENAI_API_KEY;
+  const pineconeKey = process.env.PINECONE_API_KEY;
+
+  if (!openaiKey || !pineconeKey) {
+    console.warn('[GeminiDirector] Missing OPENAI_API_KEY or PINECONE_API_KEY — skipping RAG');
+    return '';
+  }
+
+  try {
+    // Construct a rich query that captures the scene's needs
+    const query = `${attentionRole} scene targeting ${emotion}: ${scenePrompt}. What camera, lighting, sound design, and neurochemical techniques should be used?`;
+
+    // Embed the query with text-embedding-3-large
+    const embedRes = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'text-embedding-3-large',
+        input: query,
+      }),
+    });
+
+    if (!embedRes.ok) {
+      console.error('[GeminiDirector] OpenAI embedding failed:', embedRes.status);
+      return '';
+    }
+
+    const embedData = (await embedRes.json()) as {
+      data: Array<{ embedding: number[] }>;
+    };
+    const vector = embedData.data[0]?.embedding;
+    if (!vector) return '';
+
+    // Search Pinecone for the top-k most relevant chunks
+    const searchRes = await fetch(`${PINECONE_HOST}/query`, {
+      method: 'POST',
+      headers: {
+        'Api-Key': pineconeKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        namespace: PINECONE_NS,
+        vector,
+        topK,
+        includeMetadata: true,
+      }),
+    });
+
+    if (!searchRes.ok) {
+      console.error('[GeminiDirector] Pinecone search failed:', searchRes.status);
+      return '';
+    }
+
+    const searchData = (await searchRes.json()) as {
+      matches?: Array<{
+        score: number;
+        metadata?: { content?: string; source?: string; section?: string };
+      }>;
+    };
+
+    const matches = searchData.matches ?? [];
+    if (matches.length === 0) return '';
+
+    // Format the retrieved context for injection into the Director prompt
+    const context = matches
+      .filter((m) => m.score > 0.35) // Only relevant matches
+      .map((m, i) => {
+        const src = m.metadata?.source ?? 'unknown';
+        const sec = m.metadata?.section ?? '';
+        const content = m.metadata?.content ?? '';
+        return `[Source ${i + 1}: ${src} — ${sec}] (relevance: ${m.score.toFixed(2)})\n${content}`;
+      })
+      .join('\n\n---\n\n');
+
+    return context;
+  } catch (err) {
+    console.error('[GeminiDirector] RAG query failed:', err);
+    return '';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -374,8 +472,30 @@ export async function POST(request: NextRequest) {
 
     const input = parsed.data;
 
-    // 2. Build the director prompt and call Gemini
-    const systemPrompt = buildDirectorPrompt(input);
+    // 2. RAG: Query the Production Brain for relevant research
+    // WHY: This is the black box. Every scene decision is informed by the full
+    // research corpus — neurochemistry, cinematography, music, psychology.
+    // The Director NEVER operates without consulting the primary literature.
+    const retrievedContext = await queryProductionBrain(
+      input.scenePrompt,
+      input.emotion,
+      input.attentionRole,
+      5, // top-k results
+    );
+
+    // 3. Build the director prompt with RAG context injected
+    let systemPrompt = buildDirectorPrompt(input);
+
+    if (retrievedContext) {
+      systemPrompt += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RETRIEVED RESEARCH CONTEXT — Primary literature retrieved for this specific scene:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CRITICAL: Use the following research findings to inform your production decisions. These are the most relevant passages from the primary neuroscience, cinematography, music/sound design, and attention architecture literature for THIS specific scene. Ground your technique choices in this evidence.
+
+${retrievedContext}`;
+    }
+
     const parts: Array<Record<string, unknown>> = [{ text: systemPrompt }];
 
     const rawResponse = await callGemini(parts);
