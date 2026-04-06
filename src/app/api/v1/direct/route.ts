@@ -290,10 +290,20 @@ ANTICIPATION (reward prediction building):
 VALIDATION (payoff/resolution):
 → Lighting shift warm, wider shot reveals, crescendo resolving to silence, posture relaxation
 → Goal: Deliver a payoff MORE surprising than predicted
+→ SUGGEST "Lock Endpoints" (interpolate mode) when the final frame composition matters — the user controls exactly where the payoff lands. +50% cost but eliminates AI misalignment on the most important moment.
 
 REVELATION (brand positioning):
 → Steadicam or arc, center framing, leitmotif callback, sound bridge to next piece
 → Goal: Position content as part of a larger ongoing value system
+→ STRONGLY SUGGEST "Lock Endpoints" — for brand reveals (logo placement, hero product shot, character pose) the final frame is non-negotiable. Locking endpoints guarantees the brand frame lands as designed. Mention the +50% cost trade-off. Do NOT auto-apply — surface as a recommendation in the suggestionLockEndpoints field below.
+
+LOCK ENDPOINTS RECOMMENDATION RULES:
+- Recommend ONLY for VALIDATION and REVELATION scenes
+- Recommend when there are exact composition requirements (logo, brand element, specific pose)
+- Recommend when this scene needs to match-cut into the next scene (predictable handoff)
+- NEVER recommend for STIMULATION/CAPTIVATION/ANTICIPATION scenes — those benefit from organic motion
+- Always include the cost note ("+50% cost") so the user makes an informed choice
+- The user opts in via the "Lock Endpoints" button on the scene card; you only suggest, never auto-apply
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 NEUROCHEMICAL PRODUCTION MAPPING — The WHY behind each technique choice:
@@ -379,7 +389,9 @@ Return ONLY valid JSON:
   "sfx": "Specific sound effects and their timing",
   "negativePrompt": "NO TEXT. NO SUBTITLES. NO CAPTIONS.",
   "neurochemicalTargets": ["List the primary neurochemicals this scene is designed to trigger, e.g. dopamine, oxytocin, norepinephrine"],
-  "evidenceTier": "The lowest confidence tier used in your technique selection (Priority 1, 2, 3, or 4)"
+  "evidenceTier": "The lowest confidence tier used in your technique selection (Priority 1, 2, 3, or 4)",
+  "suggestLockEndpoints": false,
+  "lockEndpointsReason": "Only set if suggestLockEndpoints is true. One-sentence why: the exact composition that needs to land + the +50% cost note. Empty string if not suggesting."
 }`;
 }
 
@@ -446,6 +458,11 @@ type DirectorOutput = {
   negativePrompt: string;
   neurochemicalTargets: string[];
   evidenceTier: string;
+  // WHY: Lock Endpoints recommendation — surfaced to the user as a suggestion
+  // for VALIDATION/REVELATION scenes where the final frame composition matters.
+  // Never auto-applied. The user opts in via the Lock Endpoints button.
+  suggestLockEndpoints?: boolean;
+  lockEndpointsReason?: string;
 };
 
 // ---------------------------------------------------------------------------
