@@ -17,18 +17,19 @@ const MAX_RETRIES = 3;
 const MAX_CONSECUTIVE_OVERLOAD = 3;
 
 // Supported Seedance models
-// WHY: MuAPI dropped the 'v' prefix from Seedance endpoint names in their
-// recent API update. Old: 'seedance-v2.0-*' → New: 'seedance-2.0-*'.
-// The watermark remover kept the 'v' prefix (handled separately).
-// 'character' and 'new-omni' were deprecated — they now route to omni-reference.
+// WHY: MuAPI partial endpoint rename (verified via probe Apr 2026):
+//   - omni-reference → dropped 'v' prefix: 'seedance-2.0-omni-reference'
+//   - watermark-remover → dropped 'v' prefix: 'seedance-2.0-watermark-remover'
+//   - t2v / i2v / extend → STILL use 'seedance-v2.0-*' (NOT changed)
+//   - character / new-omni → deprecated entirely, route to omni-reference
 const SEEDANCE_MODELS = {
-  'omni-reference': 'seedance-2.0-omni-reference',
-  'new-omni': 'seedance-2.0-omni-reference', // Deprecated → fallback to omni
-  't2v': 'seedance-2.0-t2v',
-  'i2v': 'seedance-2.0-i2v',
-  'extend': 'seedance-2.0-extend',
-  'character': 'seedance-2.0-omni-reference', // Deprecated → use omni-reference for character consistency
-  'video-edit': 'seedance-2.0-video-edit',
+  'omni-reference': 'seedance-2.0-omni-reference', // Changed: dropped 'v'
+  'new-omni': 'seedance-2.0-omni-reference',       // Deprecated → fallback
+  't2v': 'seedance-v2.0-t2v',                      // Unchanged
+  'i2v': 'seedance-v2.0-i2v',                      // Unchanged
+  'extend': 'seedance-v2.0-extend',                // Unchanged
+  'character': 'seedance-2.0-omni-reference',      // Deprecated → use omni-reference
+  'video-edit': 'seedance-v2.0-video-edit',        // Unchanged (assuming same pattern)
 } as const;
 
 export type SeedanceModelKey = keyof typeof SEEDANCE_MODELS;
