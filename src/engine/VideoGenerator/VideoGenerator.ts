@@ -17,14 +17,18 @@ const MAX_RETRIES = 3;
 const MAX_CONSECUTIVE_OVERLOAD = 3;
 
 // Supported Seedance models
+// WHY: MuAPI dropped the 'v' prefix from Seedance endpoint names in their
+// recent API update. Old: 'seedance-v2.0-*' → New: 'seedance-2.0-*'.
+// The watermark remover kept the 'v' prefix (handled separately).
+// 'character' and 'new-omni' were deprecated — they now route to omni-reference.
 const SEEDANCE_MODELS = {
-  'omni-reference': 'seedance-v2.0-omni-reference',
-  'new-omni': 'seedance-v2.0-new-omni',
-  't2v': 'seedance-v2.0-t2v',
-  'i2v': 'seedance-v2.0-i2v',
-  'extend': 'seedance-v2.0-extend',
-  'character': 'seedance-v2.0-character',
-  'video-edit': 'seedance-v2.0-video-edit',
+  'omni-reference': 'seedance-2.0-omni-reference',
+  'new-omni': 'seedance-2.0-omni-reference', // Deprecated → fallback to omni
+  't2v': 'seedance-2.0-t2v',
+  'i2v': 'seedance-2.0-i2v',
+  'extend': 'seedance-2.0-extend',
+  'character': 'seedance-2.0-omni-reference', // Deprecated → use omni-reference for character consistency
+  'video-edit': 'seedance-2.0-video-edit',
 } as const;
 
 export type SeedanceModelKey = keyof typeof SEEDANCE_MODELS;
@@ -178,7 +182,7 @@ async function removeWatermark(videoUrl: string): Promise<string> {
   const apiKey = getApiKey();
 
   const response = await fetchWithRetry(
-    `${MUAPI_BASE_URL}/seedance-v2.0-watermark-remover`,
+    `${MUAPI_BASE_URL}/seedance-2.0-watermark-remover`,
     {
       method: 'POST',
       headers: {
