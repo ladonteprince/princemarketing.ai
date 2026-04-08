@@ -144,6 +144,21 @@ const DirectRequestSchema = z.object({
   sceneIndex: z.number().int().min(0),
   totalScenes: z.number().int().min(1),
   duration: z.number().min(1).max(120),
+  // WHY: Score-first production. When the project has a locked track, the
+  // frontend passes the musical section markers plus this scene's start
+  // time on the timeline. Gemini uses them to snap camera moves, emotional
+  // beats, and audio cues to actual musical boundaries (verse→drop, etc.)
+  // instead of arbitrary sceneIndex guesses.
+  scoreMarkers: z
+    .array(
+      z.object({
+        time: z.number().min(0),
+        label: z.string().max(100),
+      }),
+    )
+    .max(32)
+    .optional(),
+  sceneStartTime: z.number().min(0).optional(),
 });
 
 type DirectRequest = z.infer<typeof DirectRequestSchema>;
@@ -166,7 +181,29 @@ SCENE CONTEXT:
 - Target emotion: ${input.emotion}
 - Attention Architecture role: ${input.attentionRole.toUpperCase()}
 
-RAW SCENE PROMPT:
+${input.scoreMarkers && input.scoreMarkers.length > 0 ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LOCKED MUSICAL TIMELINE — The track is already chosen. Snap to its beats:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Musical section markers (in seconds from track start):
+${input.scoreMarkers.map((m) => `  ${m.time.toFixed(2)}s — ${m.label}`).join('\n')}
+
+This scene occupies the window ${(input.sceneStartTime ?? 0).toFixed(2)}s → ${((input.sceneStartTime ?? 0) + input.duration).toFixed(2)}s.
+
+CRITICAL timing rules:
+1. Any stinger SFX, impact cut, dolly zoom, crash zoom, or camera hit you
+   prescribe MUST land on the nearest marker inside this window — not
+   "somewhere in the middle" or "at around 3s". Name the exact timestamp.
+2. Musical-section transitions (intro→verse, verse→drop, drop→outro) are
+   the strongest cut points — if the boundary falls inside this scene,
+   schedule the reveal/climax there, not before or after.
+3. For VALIDATION and REVELATION scenes, the payoff frame must land on a
+   drop, downbeat, or resolving cadence marker — never on a dead beat.
+4. If no marker falls inside this scene's window, the scene is a "sustain"
+   beat — prescribe continuous motion (dolly, tracking, steadicam) rather
+   than a cut-heavy treatment, because there's no musical event to cut to.
+
+` : ''}RAW SCENE PROMPT:
 "${input.scenePrompt}"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

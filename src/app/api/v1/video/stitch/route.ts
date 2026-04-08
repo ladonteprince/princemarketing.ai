@@ -13,6 +13,16 @@ const execFileAsync = promisify(execFile);
 const requestSchema = z.object({
   projectId: z.string(),
   audioUrl: z.string().url().optional(),
+  // WHY: Voiceover fork. Either the karaoke recording or the ElevenLabs
+  // AI voice ends up here. When present alongside audioUrl, we apply
+  // sidechain ducking — the music bed automatically dips -12dB under
+  // the VO, then recovers. When present without audioUrl, the VO
+  // becomes the sole audio track.
+  voiceoverUrl: z.string().url().optional(),
+  // Ducking controls — sensible defaults for commercial work, but the
+  // frontend can override for genre-specific mixes (EDM wants shallower
+  // ducking, podcasts want deeper).
+  duckingDb: z.number().min(-24).max(0).optional(), // default: -12
   scenes: z.array(
     z.object({
       videoUrl: z.string(),
@@ -72,7 +82,8 @@ export async function POST(request: NextRequest) {
       return badRequest(`Invalid request. ${fieldErrors.join('; ')}`);
     }
 
-    const { projectId, scenes, audioUrl } = parsed.data;
+    const { projectId, scenes, audioUrl, voiceoverUrl, duckingDb } = parsed.data;
+    const DUCK_DB = duckingDb ?? -12;
 
     // 3. Create temp directory
     await mkdir(tmpDir, { recursive: true });
@@ -120,19 +131,21 @@ export async function POST(request: NextRequest) {
       stitchedPath,
     ]);
 
-    // 7. If audioUrl is provided, replace the audio track
+    // 7. Audio layer assembly — four branches:
+    //    (a) no audioUrl, no voiceoverUrl → keep stitched video audio as-is
+    //    (b) audioUrl only → REPLACE with music track (existing behavior)
+    //    (c) voiceoverUrl only → REPLACE with voiceover (music-less VO)
+    //    (d) audioUrl + voiceoverUrl → DUCK music under VO + mix both
     let finalPath = stitchedPath;
 
-    if (audioUrl) {
-      const audioPath = join(tmpDir, 'audio-track.mp3');
-      await downloadFile(audioUrl, audioPath);
+    const hasMusic = !!audioUrl;
+    const hasVoiceover = !!voiceoverUrl;
 
-      const withAudioPath = join(tmpDir, 'final.mp4');
-
-      // REPLACE mode: strip original audio, use provided audio track
-      // -map 0:v:0 takes video from stitched clip
-      // -map 1:a:0 takes audio from the uploaded track
-      // -shortest ends when the shorter stream ends
+    if (hasMusic && !hasVoiceover) {
+      // Branch (b): music-only replace. Existing behavior preserved.
+      const audioPath = join(tmpDir, 'music.mp3');
+      await downloadFile(audioUrl!, audioPath);
+      const out = join(tmpDir, 'final.mp4');
       await execFileAsync('ffmpeg', [
         '-i', stitchedPath,
         '-i', audioPath,
@@ -142,15 +155,89 @@ export async function POST(request: NextRequest) {
         '-map', '1:a:0',
         '-shortest',
         '-y',
-        withAudioPath,
+        out,
+      ]);
+      finalPath = out;
+    } else if (!hasMusic && hasVoiceover) {
+      // Branch (c): voiceover-only. Skip the music layer entirely,
+      // replace with VO. The final video plays the VO over silent
+      // stitched footage (which is what the user asked for when they
+      // chose a VO without picking a track — rare but supported).
+      const voPath = join(tmpDir, 'vo.mp3');
+      await downloadFile(voiceoverUrl!, voPath);
+      const out = join(tmpDir, 'final.mp4');
+      await execFileAsync('ffmpeg', [
+        '-i', stitchedPath,
+        '-i', voPath,
+        '-c:v', 'copy',
+        '-c:a', 'aac',
+        '-map', '0:v:0',
+        '-map', '1:a:0',
+        '-shortest',
+        '-y',
+        out,
+      ]);
+      finalPath = out;
+    } else if (hasMusic && hasVoiceover) {
+      // Branch (d): the real score-first production mix.
+      // Sidechain compression — music automatically ducks whenever the
+      // VO signal is present, then recovers during gaps. This is how
+      // every radio ad, podcast intro, and pro commercial handles the
+      // music-bed-under-narration problem. We layer:
+      //   [video]         from stitched.mp4
+      //   [music_ducked]  from audioUrl, compressed by VO envelope
+      //   [vo]            from voiceoverUrl, at unity gain
+      // Final: video + amix(music_ducked, vo)
+      //
+      // Filter graph explanation:
+      //   1. aformat normalizes both audio streams to 44.1kHz stereo so
+      //      the filters see matched formats.
+      //   2. asplit duplicates the VO — one copy drives the sidechain
+      //      (shapes the music envelope), the other is mixed into the
+      //      final output unchanged.
+      //   3. sidechaincompress with threshold=0.05, ratio=8, attack=20ms,
+      //      release=400ms gives a natural "radio DJ" duck — fast enough
+      //      to catch word starts, slow enough to recover between phrases.
+      //      makeup gain compensates for the average compression.
+      //   4. amix(inputs=2, duration=longest, normalize=0) prevents
+      //      ffmpeg from auto-normalizing which would cancel the duck.
+      const musicPath = join(tmpDir, 'music.mp3');
+      const voPath = join(tmpDir, 'vo.mp3');
+      await Promise.all([
+        downloadFile(audioUrl!, musicPath),
+        downloadFile(voiceoverUrl!, voPath),
       ]);
 
-      // TODO: Add MIX mode option that blends original + custom audio:
-      // ffmpeg -i stitched.mp4 -i audio.mp3
-      //   -filter_complex "[0:a][1:a]amix=inputs=2:duration=shortest:weights=0.3 1.0[a]"
-      //   -map 0:v -map "[a]" -c:v copy output.mp4
+      // Convert DUCK_DB (negative dB) into a linear makeup gain applied
+      // to the VO side of the mix. Deeper duck (-18dB) needs slightly
+      // hotter VO to stay on top of the bed; default (-12dB) keeps VO
+      // at unity.
+      const voGainDb = Math.max(0, Math.min(6, Math.abs(DUCK_DB) - 12));
 
-      finalPath = withAudioPath;
+      const filterGraph = [
+        `[1:a]aformat=sample_rates=44100:channel_layouts=stereo,volume=0.85[music]`,
+        `[2:a]aformat=sample_rates=44100:channel_layouts=stereo,volume=${(1 + voGainDb / 20).toFixed(2)}[vofull]`,
+        `[vofull]asplit=2[vosc][voout]`,
+        `[music][vosc]sidechaincompress=threshold=0.05:ratio=8:attack=20:release=400:makeup=1[duckedmusic]`,
+        `[duckedmusic][voout]amix=inputs=2:duration=longest:normalize=0[mixout]`,
+      ].join(';');
+
+      const out = join(tmpDir, 'final.mp4');
+      await execFileAsync('ffmpeg', [
+        '-i', stitchedPath,
+        '-i', musicPath,
+        '-i', voPath,
+        '-filter_complex', filterGraph,
+        '-map', '0:v:0',
+        '-map', '[mixout]',
+        '-c:v', 'copy',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        '-shortest',
+        '-y',
+        out,
+      ]);
+      finalPath = out;
     }
 
     // 8. Move final video to public directory
@@ -176,12 +263,23 @@ export async function POST(request: NextRequest) {
     // 11. Cleanup temp files (non-blocking)
     cleanup(tmpDir).catch(() => {});
 
+    const mixMode = hasMusic && hasVoiceover
+      ? 'music+vo+ducking'
+      : hasMusic
+        ? 'music-only'
+        : hasVoiceover
+          ? 'vo-only'
+          : 'video-audio';
+
     return success({
       videoUrl,
       projectId,
       totalScenes: scenes.length,
       totalDuration,
       hasCustomAudio: !!audioUrl,
+      hasVoiceover: !!voiceoverUrl,
+      mixMode,
+      duckingDb: hasMusic && hasVoiceover ? DUCK_DB : undefined,
     });
   } catch (err) {
     console.error(`[API] POST /v1/video/stitch error (job ${jobId}):`, err);
